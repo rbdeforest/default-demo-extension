@@ -58,6 +58,21 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
+  // Listen for the injector's main-world fetch/XHR interception.
+  window.addEventListener("default-demo:fetch-intercepted", (event) => {
+    if (!ns.INTERCEPT_ENABLED) return;
+    if (ns.interceptorRecentlyFired && ns.interceptorRecentlyFired()) return; // DOM hook already won
+    if (ns.markInterceptorFired) ns.markInterceptorFired();
+
+    const detail = event.detail || {};
+    const formData = detail.body || {};
+    onSubmitIntercepted({
+      formData,
+      vendor: "network",
+      source: detail.url || location.hostname
+    });
+  });
+
   function buildFormDataFromDetected(detected) {
     if (!detected) return { formData: {}, vendor: "form" };
     const formData = {};

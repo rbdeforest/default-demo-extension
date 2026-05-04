@@ -1,48 +1,35 @@
-// Per-vendor form interception. Step 5 covers plain HTML; later steps add other vendors.
+// Per-vendor form interception. html + react-custom for now; other vendors land in steps 7-9.
 // Exposes window.DefaultDemo.attachInterceptor(detected, onSubmit).
 
 (function () {
   const ns = window.DefaultDemo;
   const BRAND = ns.BRAND;
-
-  // Visual marker — outline + badge anchored to detected forms.
   const MARKER_CLASS = "default-demo-marker";
   const markers = new WeakMap();
 
   function ensureMarker(formEl) {
     if (markers.has(formEl)) return markers.get(formEl);
-
     const wrapper = document.createElement("div");
     wrapper.className = MARKER_CLASS;
     wrapper.style.cssText = `
-      position: absolute;
-      pointer-events: none;
+      position: absolute; pointer-events: none;
       border: 2px solid ${BRAND.purple};
       border-radius: 4px;
       box-shadow: 0 0 0 2px rgba(99, 0, 255, 0.15);
       z-index: 2147483646;
       transition: opacity 200ms ease;
     `;
-
     const badge = document.createElement("div");
     badge.style.cssText = `
-      position: absolute;
-      top: -22px; left: -2px;
-      background: ${BRAND.purple};
-      color: ${BRAND.white};
+      position: absolute; top: -22px; left: -2px;
+      background: ${BRAND.purple}; color: ${BRAND.white};
       font-family: "Inter", -apple-system, system-ui, sans-serif;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      padding: 3px 8px;
-      border-radius: 3px 3px 0 0;
-      pointer-events: none;
-      white-space: nowrap;
-      text-transform: uppercase;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 3px 8px; border-radius: 3px 3px 0 0;
+      pointer-events: none; white-space: nowrap; text-transform: uppercase;
     `;
     badge.textContent = "⚡ Default Demo · intercepted";
     wrapper.appendChild(badge);
-
     document.body.appendChild(wrapper);
     markers.set(formEl, wrapper);
     return wrapper;
@@ -64,13 +51,11 @@
   function attachMarker(formEl) {
     const marker = ensureMarker(formEl);
     positionMarker(formEl, marker);
-
     const reposition = () => positionMarker(formEl, marker);
     window.addEventListener("scroll", reposition, { passive: true });
     window.addEventListener("resize", reposition);
     const ro = new ResizeObserver(reposition);
     ro.observe(formEl);
-
     return () => {
       window.removeEventListener("scroll", reposition);
       window.removeEventListener("resize", reposition);
@@ -92,58 +77,82 @@
     return data;
   }
 
+  // Dedupe DOM-click vs network-injector intercepts (whichever fires first wins).
+  let lastSubmitAt = 0;
+  function recentlyFired() { return Date.now() - lastSubmitAt < 1500; }
+  function markFired() { lastSubmitAt = Date.now(); }
+
   function attachHtmlInterceptor(detected, onSubmit) {
     const form = detected.element;
     if (!form || form.dataset.defaultDemoAttached === "1") return () => {};
     form.dataset.defaultDemoAttached = "1";
-
     const removeMarker = attachMarker(form);
 
-    const handler = (event) => {
-      if (!ns.INTERCEPT_ENABLED) return;
+    const submitHandler = (event) => {
+      if (!ns.INTERCEPT_ENABLED || recentlyFired()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const formData = readFieldValues(detected);
-      onSubmit({ formData, vendor: "html", source: form });
+      markFired();
+      onSubmit({ formData: readFieldValues(detected), vendor: "html", source: form });
     };
 
-    // Capture-phase submit listener.
-    form.addEventListener("submit", handler, { capture: true });
-
-    // Click-fallback: some forms submit via JS without firing submit.
     const clickHandler = (event) => {
       const target = event.target;
       if (!target || !(target instanceof Element)) return;
       const button = target.closest("button, input[type=submit], input[type=button], [role=button]");
       if (!button || !form.contains(button)) return;
-
-      // Only intercept buttons whose text/type indicates submission.
       const type = (button.getAttribute("type") || "").toLowerCase();
       const text = (button.textContent || button.value || "").trim().toLowerCase();
       const looksSubmitty = type === "submit" || /demo|contact|talk|book|request|schedule|get started|sign up|trial|subscribe|submit|send/.test(text);
       if (!looksSubmitty) return;
-
-      if (!ns.INTERCEPT_ENABLED) return;
+      if (!ns.INTERCEPT_ENABLED || recentlyFired()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const formData = readFieldValues(detected);
-      onSubmit({ formData, vendor: "html", source: form });
+      markFired();
+      onSubmit({ formData: readFieldValues(detected), vendor: "html", source: form });
     };
-    form.addEventListener("click", clickHandler, { capture: true });
 
+    form.addEventListener("submit", submitHandler, { capture: true });
+    form.addEventListener("click", clickHandler, { capture: true });
     return () => {
-      form.removeEventListener("submit", handler, { capture: true });
+      form.removeEventListener("submit", submitHandler, { capture: true });
       form.removeEventListener("click", clickHandler, { capture: true });
       delete form.dataset.defaultDemoAttached;
       removeMarker();
     };
   }
 
+  function attachReactCustomInterceptor(detected, onSubmit) {
+    const container = detected.element;
+    const trigger = detected.trigger;
+    if (!container || !trigger) return () => {};
+    if (container.dataset.defaultDemoAttached === "1") return () => {};
+    container.dataset.defaultDemoAttached = "1";
+    const removeMarker = attachMarker(container);
+
+    const handler = (event) => {
+      if (!ns.INTERCEPT_ENABLED || recentlyFired()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      markFired();
+      onSubmit({ formData: readFieldValues(detected), vendor: "react-custom", source: container });
+    };
+    trigger.addEventListener("click", handler, { capture: true });
+
+    return () => {
+      trigger.removeEventListener("click", handler, { capture: true });
+      delete container.dataset.defaultDemoAttached;
+      removeMarker();
+    };
+  }
+
   function attachInterceptor(detected, onSubmit) {
     if (detected.vendor === "html") return attachHtmlInterceptor(detected, onSubmit);
-    // Other vendors land in steps 6-9.
+    if (detected.vendor === "react-custom") return attachReactCustomInterceptor(detected, onSubmit);
     return () => {};
   }
 
   ns.attachInterceptor = attachInterceptor;
+  ns.markInterceptorFired = markFired;
+  ns.interceptorRecentlyFired = recentlyFired;
 })();
