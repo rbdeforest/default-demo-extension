@@ -77,6 +77,11 @@ body {
   border-color: var(--accent);
 }
 
+.form-card.selected {
+  border-color: var(--accent);
+  background: rgba(99, 0, 255, 0.08);
+}
+
 .form-vendor {
   font-size: 13px;
   font-weight: 600;

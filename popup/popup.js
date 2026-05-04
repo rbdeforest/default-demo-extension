@@ -2,6 +2,7 @@ const statusEl = document.getElementById("status");
 const formsEl = document.getElementById("forms");
 const openBtn = document.getElementById("open-trace");
 const sandboxBtn = document.getElementById("run-sandbox");
+const workflowPicker = document.getElementById("workflow-picker");
 
 const VENDOR_LABEL = {
   html: "Plain HTML",
@@ -12,6 +13,9 @@ const VENDOR_LABEL = {
   unknown: "Unknown"
 };
 
+let cachedForms = [];
+let selectedFormIndex = 0;
+
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
@@ -21,15 +25,13 @@ async function fetchForms() {
   const tab = await activeTab();
   if (!tab?.id) return { forms: [] };
 
-  // Ask all frames; merge results so we see iframe-embedded forms too.
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(
       tab.id,
       { type: "get-detected-forms" },
-      { frameId: 0 }, // top frame; iframes report via background in step 8
+      { frameId: 0 },
       (response) => {
         if (chrome.runtime.lastError) {
-          // Content script not injected (e.g., chrome:// pages). Surface gracefully.
           resolve({ error: chrome.runtime.lastError.message, forms: [] });
         } else {
           resolve(response ?? { forms: [] });
@@ -40,6 +42,8 @@ async function fetchForms() {
 }
 
 function render({ forms = [], error } = {}) {
+  cachedForms = forms;
+
   if (error) {
     statusEl.textContent = "extension can't read this page";
     formsEl.innerHTML = `<div class="empty">${error}</div>`;
@@ -49,7 +53,7 @@ function render({ forms = [], error } = {}) {
 
   if (forms.length === 0) {
     statusEl.textContent = "no forms detected";
-    formsEl.innerHTML = `<div class="empty">No forms detected on this page yet.</div>`;
+    formsEl.innerHTML = `<div class="empty">No forms detected on this page yet. Use "Run demo without a form" below.</div>`;
     openBtn.disabled = true;
     return;
   }
@@ -62,8 +66,9 @@ function render({ forms = [], error } = {}) {
         .slice(0, 4)
         .map((x) => x.name || x.label)
         .join(", ");
+      const selected = i === selectedFormIndex ? " selected" : "";
       return `
-        <div class="form-card" data-index="${i}">
+        <div class="form-card${selected}" data-index="${i}">
           <div class="form-vendor">${VENDOR_LABEL[f.vendor] ?? f.vendor}</div>
           <div class="form-meta">
             ${f.fields.length} field${f.fields.length === 1 ? "" : "s"}
@@ -75,16 +80,58 @@ function render({ forms = [], error } = {}) {
     })
     .join("");
 
+  formsEl.querySelectorAll(".form-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      selectedFormIndex = Number(card.dataset.index);
+      formsEl.querySelectorAll(".form-card").forEach((c) => c.classList.remove("selected"));
+      card.classList.add("selected");
+    });
+  });
+
   openBtn.disabled = false;
 }
 
-sandboxBtn.addEventListener("click", () => {
-  statusEl.textContent = "sandbox flow lands in step 11";
-});
+async function openOverlay({ formIndex = selectedFormIndex } = {}) {
+  const tab = await activeTab();
+  if (!tab?.id) return;
+  chrome.tabs.sendMessage(
+    tab.id,
+    {
+      type: "open-overlay",
+      payload: { formIndex, workflowId: workflowPicker.value }
+    },
+    { frameId: 0 },
+    () => {
+      if (chrome.runtime.lastError) {
+        statusEl.textContent = chrome.runtime.lastError.message;
+        return;
+      }
+      window.close(); // close the popup so the AE can see the overlay
+    }
+  );
+}
 
-openBtn.addEventListener("click", () => {
-  // Wired in step 4 once the overlay exists.
-  statusEl.textContent = "overlay UI lands in step 4";
+openBtn.addEventListener("click", () => openOverlay());
+
+sandboxBtn.addEventListener("click", async () => {
+  // For now, sandbox === open overlay with no form selected. Real sandbox form lands in step 11.
+  const tab = await activeTab();
+  if (!tab?.id) return;
+  chrome.tabs.sendMessage(
+    tab.id,
+    {
+      type: "open-overlay",
+      payload: { formIndex: -1, workflowId: workflowPicker.value }
+    },
+    { frameId: 0 },
+    () => {
+      if (chrome.runtime.lastError) {
+        statusEl.textContent = chrome.runtime.lastError.message;
+        return;
+      }
+      window.close();
+    }
+  );
 });
 
 fetchForms().then(render);

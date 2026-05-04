@@ -1,4 +1,6 @@
 // Main content script (isolated world). Runs on every frame.
+// In top frame: orchestrates detection, overlay open/close, and message handling.
+// In sub-frames: detection only; overlay lives in the top frame.
 
 (function () {
   const ns = window.DefaultDemo;
@@ -9,14 +11,6 @@
   function runDetection() {
     detectedForms = ns.detectForms();
     const summary = ns.summarizeDetected(detectedForms);
-    console.log("[Default Demo] detection ran", {
-      url: location.href,
-      isTopFrame: window === window.top,
-      count: detectedForms.length,
-      summary
-    });
-
-    // Tell the background/popup we have new results for this frame.
     chrome.runtime
       .sendMessage({
         type: MessageTypes.FORMS_DETECTED,
@@ -25,7 +19,6 @@
       .catch(() => {});
   }
 
-  // Run once on load, then on DOM mutations (cheap throttle).
   runDetection();
 
   let mutationTimer = null;
@@ -38,7 +31,20 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // Popup asks for the current frame's detected forms.
+  function buildFormDataForOverlay(detected) {
+    if (!detected) return { formData: {}, vendor: "form" };
+    const formData = {};
+    detected.fields.forEach((f) => {
+      const key = f.name || f.label;
+      if (!key) return;
+      // Read live value if available; fall back to empty string.
+      let value = "";
+      try { value = f.element?.value ?? ""; } catch (e) {}
+      formData[key] = value;
+    });
+    return { formData, vendor: detected.vendor };
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === MessageTypes.GET_DETECTED_FORMS) {
       sendResponse({
@@ -46,7 +52,29 @@
         isTopFrame: window === window.top,
         forms: ns.summarizeDetected(detectedForms)
       });
-      return true; // keep the channel open for sync response
+      return true;
+    }
+
+    if (message?.type === MessageTypes.OPEN_OVERLAY) {
+      // Only the top frame mounts the overlay.
+      if (window !== window.top) return;
+      const idx = message.payload?.formIndex ?? 0;
+      const detected = detectedForms[idx];
+      const { formData, vendor } = buildFormDataForOverlay(detected);
+      ns.overlay.open({
+        formData,
+        vendor,
+        sourceUrl: location.hostname,
+        workflowId: message.payload?.workflowId
+      });
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    if (message?.type === MessageTypes.CLOSE_OVERLAY) {
+      if (window === window.top) ns.overlay.close();
+      sendResponse({ ok: true });
+      return true;
     }
   });
 })();

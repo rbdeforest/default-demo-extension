@@ -1,5 +1,4 @@
-// Loaded first in every content-script frame. Exposes shared constants on window.DefaultDemo.
-// Service worker uses lib/messaging.js (ES module) instead — keep these in sync.
+// Loaded first in every content-script frame. Exposes shared constants + workflow registry on window.DefaultDemo.
 
 (function () {
   const ns = (window.DefaultDemo = window.DefaultDemo || {});
@@ -22,4 +21,16 @@
   };
 
   ns.INTERCEPT_ENABLED = true;
+
+  // Workflow registry — workflow files call registerWorkflow on load.
+  ns.workflows = ns.workflows || [];
+  ns.registerWorkflow = function (workflow) {
+    if (!workflow || !workflow.id) return;
+    const existing = ns.workflows.findIndex((w) => w.id === workflow.id);
+    if (existing >= 0) ns.workflows[existing] = workflow;
+    else ns.workflows.push(workflow);
+  };
+  ns.getWorkflow = function (id) {
+    return ns.workflows.find((w) => w.id === id);
+  };
 })();
