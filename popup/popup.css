@@ -54,13 +54,48 @@ body {
 
 .forms {
   margin-bottom: 12px;
-  min-height: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .empty {
   color: var(--muted);
   font-size: 12px;
   padding: 8px 0;
+}
+
+.form-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 120ms ease;
+}
+
+.form-card:hover {
+  border-color: var(--accent);
+}
+
+.form-vendor {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.form-meta {
+  font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.form-fields {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 button {

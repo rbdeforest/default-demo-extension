@@ -1,10 +1,52 @@
-// Main content script (isolated world). Step 2 stub — just announces itself.
-// Detection, interception, and overlay mounting land in steps 3+.
+// Main content script (isolated world). Runs on every frame.
 
-const INTERCEPT_ENABLED = true;
+(function () {
+  const ns = window.DefaultDemo;
+  const MessageTypes = ns.MessageTypes;
 
-console.log("[Default Demo] content script loaded", {
-  url: location.href,
-  intercept: INTERCEPT_ENABLED,
-  isTopFrame: window === window.top
-});
+  let detectedForms = [];
+
+  function runDetection() {
+    detectedForms = ns.detectForms();
+    const summary = ns.summarizeDetected(detectedForms);
+    console.log("[Default Demo] detection ran", {
+      url: location.href,
+      isTopFrame: window === window.top,
+      count: detectedForms.length,
+      summary
+    });
+
+    // Tell the background/popup we have new results for this frame.
+    chrome.runtime
+      .sendMessage({
+        type: MessageTypes.FORMS_DETECTED,
+        payload: { url: location.href, forms: summary }
+      })
+      .catch(() => {});
+  }
+
+  // Run once on load, then on DOM mutations (cheap throttle).
+  runDetection();
+
+  let mutationTimer = null;
+  const observer = new MutationObserver(() => {
+    if (mutationTimer) return;
+    mutationTimer = setTimeout(() => {
+      mutationTimer = null;
+      runDetection();
+    }, 500);
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  // Popup asks for the current frame's detected forms.
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === MessageTypes.GET_DETECTED_FORMS) {
+      sendResponse({
+        url: location.href,
+        isTopFrame: window === window.top,
+        forms: ns.summarizeDetected(detectedForms)
+      });
+      return true; // keep the channel open for sync response
+    }
+  });
+})();
