@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test — Plain HTML Form</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; color: #111; }
+      label { display: block; margin-top: 12px; font-size: 13px; color: #444; }
+      input, select { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; margin-top: 4px; }
+      button { margin-top: 16px; padding: 10px 16px; background: #6300ff; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Request a demo</h1>
+    <form id="demo-form" action="https://example.com/leads" method="POST">
+      <label>Email <input type="email" name="email" required placeholder="you@company.com" /></label>
+      <label>First name <input type="text" name="first_name" required /></label>
+      <label>Last name <input type="text" name="last_name" required /></label>
+      <label>Company <input type="text" name="company" required /></label>
+      <label>Title <input type="text" name="title" /></label>
+      <label>Employees
+        <select name="employees">
+          <option>1-10</option>
+          <option>11-50</option>
+          <option>51-200</option>
+          <option>201-1000</option>
+          <option>1000+</option>
+        </select>
+      </label>
+      <button type="submit">Request demo</button>
+    </form>
+  </body>
+</html>

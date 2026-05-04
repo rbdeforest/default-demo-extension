@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Default Demo — Test Fixtures</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #111; }
+      h1 { font-size: 22px; }
+      .grid { display: grid; gap: 12px; }
+      a { display: block; padding: 14px 16px; border: 1px solid #e3e3e3; border-radius: 6px; text-decoration: none; color: #111; }
+      a:hover { border-color: #6300ff; }
+      .vendor { font-family: ui-monospace, monospace; font-size: 12px; color: #6300ff; }
+      .desc { font-size: 13px; color: #555; margin-top: 4px; }
+      .note { font-size: 12px; color: #777; margin-top: 24px; }
+    </style>
+  </head>
+  <body>
+    <h1>Default Demo — Test Fixtures</h1>
+    <p>Each page below mocks a different form vendor so you can verify detection + interception locally.</p>
+
+    <div class="grid">
+      <a href="html-form.html">
+        <div class="vendor">html</div>
+        <div>Plain HTML form</div>
+        <div class="desc">A vanilla &lt;form&gt; with email/name/company. Tests step 3 + step 5.</div>
+      </a>
+      <a href="react-custom.html">
+        <div class="vendor">react-custom</div>
+        <div>React-style custom form (no &lt;form&gt; tag)</div>
+        <div class="desc">Inputs near a "Request demo" button, no real form element. Tests step 6 heuristic.</div>
+      </a>
+      <a href="marketo.html">
+        <div class="vendor">marketo</div>
+        <div>Marketo Forms 2.0</div>
+        <div class="desc">Loads MktoForms2 from a real Marketo munchkin host. Tests step 7. (Needs internet.)</div>
+      </a>
+      <a href="hubspot.html">
+        <div class="vendor">hubspot</div>
+        <div>HubSpot embedded iframe</div>
+        <div class="desc">A real hsforms.com iframe. Tests step 8 cross-frame messaging. (Needs internet.)</div>
+      </a>
+      <a href="multi.html">
+        <div class="vendor">multi</div>
+        <div>Multiple forms on one page</div>
+        <div class="desc">Verifies the popup shows all detected forms and you can pick one.</div>
+      </a>
+    </div>
+
+    <p class="note">Open these via <code>file://</code> or any local static server. The extension matches <code>&lt;all_urls&gt;</code> so both work.</p>
+  </body>
+</html>

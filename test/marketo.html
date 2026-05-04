@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test — Marketo Mock</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; color: #111; }
+      .note { font-size: 12px; color: #777; padding: 10px; background: #faf6ff; border-left: 3px solid #6300ff; margin-bottom: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Talk to sales (Marketo)</h1>
+    <div class="note">
+      For a real Marketo Forms2 fixture, swap this for an actual munchkin host (e.g., <code>https://app-sjqe.marketo.com/js/forms2/js/forms2.min.js</code>) and a real form ID. This page mocks the global instead so detection can be unit-tested offline.
+    </div>
+
+    <form id="mktoForm_1234"></form>
+
+    <script>
+      // Mock MktoForms2 surface enough that detection works without internet.
+      window.MktoForms2 = {
+        _forms: [{
+          getId: () => 1234,
+          getFormElem: () => ({ 0: document.getElementById("mktoForm_1234") }),
+          vals: () => ({ Email: "test@example.com", FirstName: "Test", Company: "Acme" }),
+          onSubmit: (cb) => { window.__mktoOnSubmit = cb; },
+          onSuccess: (cb) => { window.__mktoOnSuccess = cb; }
+        }],
+        allForms() { return this._forms; },
+        loadForm(host, munchkinId, formId, cb) { cb(this._forms[0]); }
+      };
+    </script>
+  </body>
+</html>

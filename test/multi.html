@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test — Multiple Forms</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 60px auto; padding: 0 16px; color: #111; }
+      section { border: 1px solid #e3e3e3; padding: 20px; margin-bottom: 24px; border-radius: 6px; }
+      label { display: block; margin-top: 10px; font-size: 13px; color: #444; }
+      input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; margin-top: 4px; }
+      button { margin-top: 14px; padding: 9px 14px; background: #6300ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+      h2 { font-size: 16px; margin: 0 0 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Multiple forms on one page</h1>
+    <p>Verifies the popup lists all detected forms and the AE can pick which one to demo.</p>
+
+    <section>
+      <h2>Newsletter signup</h2>
+      <form>
+        <label>Email <input type="email" name="email" required /></label>
+        <button>Subscribe</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Request a demo</h2>
+      <form>
+        <label>Email <input type="email" name="email" required /></label>
+        <label>Company <input type="text" name="company" required /></label>
+        <button>Request demo</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Talk to sales (no &lt;form&gt;)</h2>
+      <div class="cluster">
+        <label>Work email <input type="email" /></label>
+        <label>Phone <input type="tel" /></label>
+        <button>Contact sales</button>
+      </div>
+    </section>
+  </body>
+</html>

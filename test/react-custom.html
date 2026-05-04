@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test — React-style Custom Form</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; color: #111; }
+      label { display: block; margin-top: 12px; font-size: 13px; color: #444; }
+      input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; margin-top: 4px; }
+      button { margin-top: 16px; padding: 10px 16px; background: #6300ff; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Talk to sales</h1>
+    <!-- No <form> element on purpose. Tests the react-custom heuristic. -->
+    <div class="contact-cluster">
+      <label>Work email <input type="email" placeholder="you@company.com" /></label>
+      <label>Full name <input type="text" placeholder="Jane Doe" /></label>
+      <label>Company <input type="text" placeholder="Acme Inc" /></label>
+      <button id="cta" onclick="fakeSubmit()">Request demo</button>
+    </div>
+
+    <script>
+      function fakeSubmit() {
+        const inputs = document.querySelectorAll(".contact-cluster input");
+        const data = {};
+        inputs.forEach(i => data[i.placeholder] = i.value);
+        // Simulates a JS POST that's not a real form submit event.
+        fetch("https://example.com/api/leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      }
+    </script>
+  </body>
+</html>

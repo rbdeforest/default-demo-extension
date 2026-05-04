@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Default Demo</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo-dot"></div>
+      <h1>Default Demo</h1>
+    </div>
+
+    <div class="status" id="status">form detector loaded</div>
+
+    <div class="forms" id="forms">
+      <div class="empty">No forms detected yet.</div>
+    </div>
+
+    <button class="primary" id="open-trace" disabled>Open trace panel</button>
+    <button class="secondary" id="run-sandbox">Run demo without a form</button>
+
+    <div class="footer">
+      <label class="picker">
+        Workflow
+        <select id="workflow-picker">
+          <option value="placeholder">Placeholder Demo Workflow</option>
+        </select>
+      </label>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+/* Step 4 fills this in. */
+
+body {
+  margin: 0;
+  background: #000000;
+  color: #ffffff;
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
+}
+
+.placeholder {
+  padding: 24px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
