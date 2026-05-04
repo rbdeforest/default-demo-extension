@@ -1,12 +1,38 @@
 // Main content script (isolated world). Runs on every frame.
-// In top frame: orchestrates detection, overlay open/close, and message handling.
-// In sub-frames: detection only; overlay lives in the top frame.
 
 (function () {
   const ns = window.DefaultDemo;
   const MessageTypes = ns.MessageTypes;
 
   let detectedForms = [];
+  const detachByForm = new WeakMap();
+
+  function onSubmitIntercepted({ formData, vendor, source }) {
+    // Forward to top frame's overlay. Same-frame fast path when we ARE the top frame.
+    if (window === window.top) {
+      ns.overlay.open({
+        formData,
+        vendor,
+        sourceUrl: location.hostname
+      });
+    } else {
+      chrome.runtime
+        .sendMessage({
+          type: MessageTypes.FORM_INTERCEPTED,
+          payload: { formData, vendor, sourceUrl: location.hostname }
+        })
+        .catch(() => {});
+    }
+  }
+
+  function attachInterceptors() {
+    detectedForms.forEach((d) => {
+      if (!d || !d.element) return;
+      if (detachByForm.has(d.element)) return;
+      const detach = ns.attachInterceptor(d, onSubmitIntercepted);
+      detachByForm.set(d.element, detach);
+    });
+  }
 
   function runDetection() {
     detectedForms = ns.detectForms();
@@ -17,6 +43,7 @@
         payload: { url: location.href, forms: summary }
       })
       .catch(() => {});
+    attachInterceptors();
   }
 
   runDetection();
@@ -31,13 +58,12 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  function buildFormDataForOverlay(detected) {
+  function buildFormDataFromDetected(detected) {
     if (!detected) return { formData: {}, vendor: "form" };
     const formData = {};
     detected.fields.forEach((f) => {
       const key = f.name || f.label;
       if (!key) return;
-      // Read live value if available; fall back to empty string.
       let value = "";
       try { value = f.element?.value ?? ""; } catch (e) {}
       formData[key] = value;
@@ -56,11 +82,10 @@
     }
 
     if (message?.type === MessageTypes.OPEN_OVERLAY) {
-      // Only the top frame mounts the overlay.
       if (window !== window.top) return;
       const idx = message.payload?.formIndex ?? 0;
-      const detected = detectedForms[idx];
-      const { formData, vendor } = buildFormDataForOverlay(detected);
+      const detected = idx >= 0 ? detectedForms[idx] : null;
+      const { formData, vendor } = buildFormDataFromDetected(detected);
       ns.overlay.open({
         formData,
         vendor,
@@ -75,6 +100,15 @@
       if (window === window.top) ns.overlay.close();
       sendResponse({ ok: true });
       return true;
+    }
+
+    // Forwarded from sub-frames via background.
+    if (message?.type === MessageTypes.FORM_INTERCEPTED && window === window.top) {
+      ns.overlay.open({
+        formData: message.payload?.formData ?? {},
+        vendor: message.payload?.vendor || "form",
+        sourceUrl: message.payload?.sourceUrl || location.hostname
+      });
     }
   });
 })();

@@ -21,6 +21,7 @@
         "content/_shared.js",
         "workflows/_placeholder.js",
         "content/form-detector.js",
+        "content/form-interceptor.js",
         "content/overlay.js",
         "content/content.js"
       ],
