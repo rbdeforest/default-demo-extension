@@ -7,6 +7,27 @@
   const EVENT_NAME = "default-demo:fetch-intercepted";
   const EMAIL_KEY_RE = /e[-_]?mail/i;
 
+  // Known marketing-automation endpoints. Block by URL even if body shape is ambiguous.
+  const MAS_URL_RE = new RegExp(
+    [
+      "\\.marketo\\.com\\/index\\.php",
+      "\\.mktoresp\\.com",
+      "munchkin",
+      "\\.hsforms\\.com",
+      "\\.hsforms\\.net",
+      "forms\\.hubspot\\.com",
+      "api\\.hsforms\\.com",
+      "track\\.hubspot\\.com\\/__ptq",
+      "\\.pardot\\.com\\/l\\/",
+      "pi\\.pardot\\.com",
+      "go\\.pardot\\.com"
+    ].join("|"),
+    "i"
+  );
+  function isMasEndpoint(url) {
+    return typeof url === "string" && MAS_URL_RE.test(url);
+  }
+
   function emailLikeInString(s) {
     if (typeof s !== "string" || !s) return false;
     return /e[-_]?mail/i.test(s);
@@ -115,12 +136,11 @@
       }
       method = (method || "GET").toUpperCase();
 
-      if (
-        (method === "POST" || method === "PUT") &&
-        bodyContainsEmail(body, contentType)
-      ) {
+      const masMatch = isMasEndpoint(url);
+      const looksLikeForm = (method === "POST" || method === "PUT") && bodyContainsEmail(body, contentType);
+      if (masMatch || looksLikeForm) {
         dispatchIntercept({
-          source: "fetch",
+          source: masMatch ? "mas" : "fetch",
           url,
           method,
           body: bodyToObject(body, contentType)
@@ -154,10 +174,13 @@
     try {
       const method = this.__ddMethod || "GET";
       const ct = (this.__ddHeaders && this.__ddHeaders["content-type"]) || "";
-      if ((method === "POST" || method === "PUT") && bodyContainsEmail(body, ct)) {
+      const url = this.__ddUrl;
+      const masMatch = isMasEndpoint(url);
+      const looksLikeForm = (method === "POST" || method === "PUT") && bodyContainsEmail(body, ct);
+      if (masMatch || looksLikeForm) {
         dispatchIntercept({
-          source: "xhr",
-          url: this.__ddUrl,
+          source: masMatch ? "mas-xhr" : "xhr",
+          url,
           method,
           body: bodyToObject(body, ct)
         });
@@ -180,6 +203,59 @@
     } catch (e) {}
     return origSend.apply(this, arguments);
   };
+
+  // ---- Marketo Forms 2.0 hook ----
+  function hookMarketoForm(form) {
+    if (!form || form.__defaultDemoHooked) return;
+    form.__defaultDemoHooked = true;
+    try {
+      if (typeof form.onSubmit === "function") {
+        form.onSubmit(function () { return false; });
+      }
+      if (typeof form.onSuccess === "function") {
+        form.onSuccess(function (values) {
+          dispatchIntercept({ source: "marketo", body: values, vendor: "marketo" });
+          return false; // prevent navigation to followUpUrl
+        });
+      }
+      const formElem = typeof form.getFormElem === "function" ? form.getFormElem() : null;
+      const realForm = formElem && formElem[0];
+      if (realForm) {
+        realForm.addEventListener(
+          "click",
+          function (e) {
+            const btn = e.target && e.target.closest && e.target.closest("button[type=submit], input[type=submit]");
+            if (!btn) return;
+            try {
+              const vals = typeof form.vals === "function" ? form.vals() : {};
+              dispatchIntercept({ source: "marketo", body: vals, vendor: "marketo" });
+            } catch (err) {}
+          },
+          true
+        );
+      }
+    } catch (err) { /* swallow */ }
+  }
+
+  function tryHookMktoForms2() {
+    const M = window.MktoForms2;
+    if (!M || M.__defaultDemoHooked) return;
+    try {
+      if (typeof M.whenReady === "function") {
+        M.whenReady(hookMarketoForm);
+      } else if (typeof M.allForms === "function") {
+        M.allForms().forEach(hookMarketoForm);
+      }
+      M.__defaultDemoHooked = true;
+    } catch (err) {}
+  }
+
+  // Poll for MktoForms2 to load (form lib may load async after page).
+  let mktoChecks = 0;
+  const mktoInterval = setInterval(() => {
+    if (window.MktoForms2) tryHookMktoForms2();
+    if (++mktoChecks > 100) clearInterval(mktoInterval); // ~10s
+  }, 100);
 
   // Expose a small marker so the isolated content script can confirm injection.
   Object.defineProperty(window, "__defaultDemoInjected", {

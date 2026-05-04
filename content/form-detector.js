@@ -74,17 +74,36 @@
 
   function detectHtmlForms(root) {
     const forms = Array.from(root.querySelectorAll("form"));
+    return forms
+      .filter((form) => !/^mktoForm_/.test(form.id || "")) // Marketo handled separately
+      .map((form) => {
+        const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
+          .map(extractField)
+          .filter(Boolean);
+        return {
+          vendor: "html",
+          element: form,
+          iframe: null,
+          trigger: null,
+          fields,
+          confidence: scoreConfidence(fields)
+        };
+      });
+  }
+
+  function detectMarketo(root) {
+    const forms = Array.from(root.querySelectorAll('form[id^="mktoForm_"]'));
     return forms.map((form) => {
       const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
         .map(extractField)
         .filter(Boolean);
       return {
-        vendor: "html",
+        vendor: "marketo",
         element: form,
         iframe: null,
         trigger: null,
         fields,
-        confidence: scoreConfidence(fields)
+        confidence: 0.95
       };
     });
   }
@@ -141,15 +160,16 @@
   }
 
   function detectForms() {
+    const marketo = detectMarketo(document);
     const html = detectHtmlForms(document);
 
-    // Track elements claimed by html detection so react-custom doesn't double-claim.
     const claimed = new Set();
+    marketo.forEach((d) => claimed.add(d.element));
     html.forEach((d) => claimed.add(d.element));
 
     const reactCustom = detectReactCustom(document, claimed);
 
-    const all = [...html, ...reactCustom];
+    const all = [...marketo, ...html, ...reactCustom];
     return all.sort((a, b) => b.confidence - a.confidence);
   }
 

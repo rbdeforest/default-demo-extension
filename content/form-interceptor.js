@@ -148,9 +148,38 @@
     };
   }
 
+  function attachMarketoInterceptor(detected, onSubmit) {
+    const form = detected.element;
+    if (!form || form.dataset.defaultDemoAttached === "1") return () => {};
+    form.dataset.defaultDemoAttached = "1";
+    const removeMarker = attachMarker(form);
+
+    // Backup capture-phase click handler. The real interception is in the injector
+    // (MktoForms2 onSubmit returning false + URL-pattern network block).
+    const handler = (event) => {
+      const target = event.target;
+      if (!target || !(target instanceof Element)) return;
+      const button = target.closest("button[type=submit], input[type=submit], button");
+      if (!button || !form.contains(button)) return;
+      if (!ns.INTERCEPT_ENABLED || recentlyFired()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      markFired();
+      onSubmit({ formData: readFieldValues(detected), vendor: "marketo", source: form });
+    };
+    form.addEventListener("click", handler, { capture: true });
+
+    return () => {
+      form.removeEventListener("click", handler, { capture: true });
+      delete form.dataset.defaultDemoAttached;
+      removeMarker();
+    };
+  }
+
   function attachInterceptor(detected, onSubmit) {
     if (detected.vendor === "html") return attachHtmlInterceptor(detected, onSubmit);
     if (detected.vendor === "react-custom") return attachReactCustomInterceptor(detected, onSubmit);
+    if (detected.vendor === "marketo") return attachMarketoInterceptor(detected, onSubmit);
     return () => {};
   }
 

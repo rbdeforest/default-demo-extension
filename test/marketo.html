@@ -5,30 +5,61 @@
     <title>Test — Marketo Mock</title>
     <style>
       body { font-family: -apple-system, system-ui, sans-serif; max-width: 480px; margin: 60px auto; padding: 0 16px; color: #111; }
+      label { display: block; margin-top: 12px; font-size: 13px; color: #444; }
+      input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; margin-top: 4px; }
+      button { margin-top: 16px; padding: 10px 16px; background: #6300ff; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
       .note { font-size: 12px; color: #777; padding: 10px; background: #faf6ff; border-left: 3px solid #6300ff; margin-bottom: 20px; }
     </style>
   </head>
   <body>
     <h1>Talk to sales (Marketo)</h1>
     <div class="note">
-      For a real Marketo Forms2 fixture, swap this for an actual munchkin host (e.g., <code>https://app-sjqe.marketo.com/js/forms2/js/forms2.min.js</code>) and a real form ID. This page mocks the global instead so detection can be unit-tested offline.
+      Mocks <code>window.MktoForms2</code> and a <code>form#mktoForm_1234</code>. Detection picks it up via the form-id prefix; the injector hooks the Forms2 API. Real Marketo loads the lib from a munchkin host — same mechanics.
     </div>
 
-    <form id="mktoForm_1234"></form>
+    <form id="mktoForm_1234" action="https://app-sjqe.marketo.com/index.php/leadCapture/save2" method="POST">
+      <label>Email <input type="email" name="Email" required placeholder="you@company.com" /></label>
+      <label>First name <input type="text" name="FirstName" required /></label>
+      <label>Last name <input type="text" name="LastName" required /></label>
+      <label>Company <input type="text" name="Company" required /></label>
+      <button type="submit">Request demo</button>
+    </form>
 
     <script>
-      // Mock MktoForms2 surface enough that detection works without internet.
-      window.MktoForms2 = {
-        _forms: [{
+      // Mock MktoForms2 surface — minimal but matches the real API.
+      (function () {
+        const formEl = document.getElementById("mktoForm_1234");
+        let onSubmitCb = null;
+        let onSuccessCb = null;
+        const fakeForm = {
           getId: () => 1234,
-          getFormElem: () => ({ 0: document.getElementById("mktoForm_1234") }),
-          vals: () => ({ Email: "test@example.com", FirstName: "Test", Company: "Acme" }),
-          onSubmit: (cb) => { window.__mktoOnSubmit = cb; },
-          onSuccess: (cb) => { window.__mktoOnSuccess = cb; }
-        }],
-        allForms() { return this._forms; },
-        loadForm(host, munchkinId, formId, cb) { cb(this._forms[0]); }
-      };
+          getFormElem: () => ({ 0: formEl }),
+          vals: () => {
+            const data = {};
+            new FormData(formEl).forEach((v, k) => (data[k] = v));
+            return data;
+          },
+          onSubmit: (cb) => { onSubmitCb = cb; },
+          onSuccess: (cb) => { onSuccessCb = cb; },
+          submit: function () {
+            if (onSubmitCb && onSubmitCb() === false) {
+              // Real Marketo would still POST here. Our injector blocks the network call,
+              // and our DOM hook fires the intercept event — so onSuccess won't run on its own.
+              // Simulate it for testing the onSuccess path explicitly:
+              if (onSuccessCb) onSuccessCb(this.vals(), "https://thank-you.example.com");
+              return;
+            }
+            // Fallback: real form submit would happen — but our content script intercepts.
+            formEl.submit();
+          }
+        };
+        const readyCbs = [];
+        window.MktoForms2 = {
+          allForms: () => [fakeForm],
+          loadForm: (host, mid, fid, cb) => cb(fakeForm),
+          whenReady: (cb) => { readyCbs.push(cb); cb(fakeForm); }
+        };
+      })();
     </script>
   </body>
 </html>
