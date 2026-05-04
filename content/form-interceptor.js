@@ -95,7 +95,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       markFired();
-      onSubmit({ formData: readFieldValues(detected), vendor: "html", source: form });
+      onSubmit({ formData: readFieldValues(detected), vendor: detected.vendor, source: form });
     };
 
     const clickHandler = (event) => {
@@ -111,7 +111,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       markFired();
-      onSubmit({ formData: readFieldValues(detected), vendor: "html", source: form });
+      onSubmit({ formData: readFieldValues(detected), vendor: detected.vendor, source: form });
     };
 
     form.addEventListener("submit", submitHandler, { capture: true });
@@ -176,11 +176,26 @@
     };
   }
 
+  function attachIframeOutlineOnly(detected) {
+    const iframe = detected.element;
+    if (!iframe || iframe.dataset.defaultDemoAttached === "1") return () => {};
+    iframe.dataset.defaultDemoAttached = "1";
+    const removeMarker = attachMarker(iframe);
+    return () => {
+      delete iframe.dataset.defaultDemoAttached;
+      removeMarker();
+    };
+  }
+
   function attachInterceptor(detected, onSubmit) {
-    if (detected.vendor === "html") return attachHtmlInterceptor(detected, onSubmit);
+    // Top-frame vendor iframe — show the outline; the iframe's own content script intercepts inside.
+    if (detected.element instanceof HTMLIFrameElement) {
+      return attachIframeOutlineOnly(detected);
+    }
     if (detected.vendor === "react-custom") return attachReactCustomInterceptor(detected, onSubmit);
     if (detected.vendor === "marketo") return attachMarketoInterceptor(detected, onSubmit);
-    return () => {};
+    // html / hubspot inner / pardot inner all share the html capture-phase pattern.
+    return attachHtmlInterceptor(detected, onSubmit);
   }
 
   ns.attachInterceptor = attachInterceptor;

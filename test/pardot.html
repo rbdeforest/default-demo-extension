@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test — Pardot Iframe</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 600px; margin: 60px auto; padding: 0 16px; color: #111; }
+      iframe { border: 1px solid #ccc; width: 100%; height: 360px; }
+      .note { font-size: 12px; color: #777; padding: 10px; background: #faf6ff; border-left: 3px solid #6300ff; margin-bottom: 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Talk to sales (Pardot)</h1>
+    <div class="note">
+      Detection picks this up by <code>src</code> matching <code>pardot.com</code>. URL is a structurally correct Pardot embed but the form path is fake — the iframe will 404, but detection still fires and the outline + popup count appear.
+    </div>
+
+    <iframe src="https://go.pardot.com/l/123/2024-01-01/abc" title="Pardot demo form"></iframe>
+  </body>
+</html>

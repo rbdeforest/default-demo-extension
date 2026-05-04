@@ -10,11 +10,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!sender.tab) return;
 
   if (message?.type === MessageTypes.FORM_INTERCEPTED) {
-    chrome.tabs.sendMessage(sender.tab.id, {
-      type: MessageTypes.FORM_INTERCEPTED,
-      payload: message.payload,
-      sourceFrameId: sender.frameId
-    });
+    chrome.tabs.sendMessage(
+      sender.tab.id,
+      {
+        type: MessageTypes.FORM_INTERCEPTED,
+        payload: message.payload,
+        sourceFrameId: sender.frameId
+      },
+      { frameId: 0 } // route to top frame only
+    );
   }
 
   // FORMS_DETECTED is per-frame; popup queries directly via chrome.tabs.sendMessage.

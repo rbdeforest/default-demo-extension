@@ -75,7 +75,8 @@
   function detectHtmlForms(root) {
     const forms = Array.from(root.querySelectorAll("form"));
     return forms
-      .filter((form) => !/^mktoForm_/.test(form.id || "")) // Marketo handled separately
+      .filter((form) => !/^mktoForm_/.test(form.id || ""))   // Marketo handled separately
+      .filter((form) => !/^hsForm_/.test(form.id || ""))     // HubSpot handled separately
       .map((form) => {
         const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
           .map(extractField)
@@ -106,6 +107,58 @@
         confidence: 0.95
       };
     });
+  }
+
+  function detectHubspotInnerForms(root) {
+    // HubSpot wraps each form as <form id="hsForm_...">. Works inside the iframe.
+    const forms = Array.from(root.querySelectorAll('form[id^="hsForm_"]'));
+    return forms.map((form) => {
+      const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
+        .map(extractField)
+        .filter(Boolean);
+      return {
+        vendor: "hubspot",
+        element: form,
+        iframe: null,
+        trigger: null,
+        fields,
+        confidence: 0.95
+      };
+    });
+  }
+
+  const HUBSPOT_IFRAME_RE = /hsforms\.com|hsforms\.net|forms\.hubspot\.com/i;
+  const PARDOT_IFRAME_RE = /pi\.pardot\.com|go\.pardot\.com|\.pardot\.com/i;
+
+  function detectVendoredIframes(root) {
+    if (window !== window.top) return []; // only top frame outlines iframes
+    const iframes = Array.from(root.querySelectorAll("iframe"));
+    return iframes
+      .map((iframe) => {
+        const src = iframe.getAttribute("src") || iframe.src || "";
+        let vendor = null;
+        if (HUBSPOT_IFRAME_RE.test(src)) vendor = "hubspot";
+        else if (PARDOT_IFRAME_RE.test(src)) vendor = "pardot";
+        if (!vendor) return null;
+        return {
+          vendor,
+          element: iframe,
+          iframe,
+          trigger: null,
+          fields: [], // cross-origin; the iframe's own content script reports values on submit
+          confidence: 0.85
+        };
+      })
+      .filter(Boolean);
+  }
+
+  // If we're INSIDE a vendor iframe, relabel any html forms with the right vendor.
+  function inFrameVendor() {
+    if (window === window.top) return null;
+    const host = location.hostname;
+    if (HUBSPOT_IFRAME_RE.test(host)) return "hubspot";
+    if (PARDOT_IFRAME_RE.test(host)) return "pardot";
+    return null;
   }
 
   function buttonText(btn) {
@@ -161,15 +214,24 @@
 
   function detectForms() {
     const marketo = detectMarketo(document);
-    const html = detectHtmlForms(document);
+    const hubspotInner = detectHubspotInnerForms(document);
+    let html = detectHtmlForms(document);
+
+    // Inside a vendor iframe — relabel html forms.
+    const innerVendor = inFrameVendor();
+    if (innerVendor) {
+      html = html.map((d) => ({ ...d, vendor: innerVendor, confidence: 0.9 }));
+    }
 
     const claimed = new Set();
     marketo.forEach((d) => claimed.add(d.element));
+    hubspotInner.forEach((d) => claimed.add(d.element));
     html.forEach((d) => claimed.add(d.element));
 
     const reactCustom = detectReactCustom(document, claimed);
+    const vendoredIframes = detectVendoredIframes(document);
 
-    const all = [...marketo, ...html, ...reactCustom];
+    const all = [...marketo, ...hubspotInner, ...html, ...reactCustom, ...vendoredIframes];
     return all.sort((a, b) => b.confidence - a.confidence);
   }
 
