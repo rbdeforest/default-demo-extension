@@ -19,6 +19,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "content/_shared.js",
+        "content/prospect-context.js",
         "workflows/_placeholder.js",
         "content/form-detector.js",
         "content/form-interceptor.js",

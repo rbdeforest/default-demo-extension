@@ -77,6 +77,18 @@
     const sourceEl = shadow.querySelector(".source-host");
     sourceEl.textContent = source || location.hostname;
 
+    const techEl = shadow.querySelector(".source-tech");
+    const ctx = ns.getProspectContext ? ns.getProspectContext() : null;
+    if (techEl) {
+      const tech = ctx?.detectedTech || [];
+      if (tech.length) {
+        techEl.textContent = "Detected: " + tech.join(", ");
+        techEl.style.display = "block";
+      } else {
+        techEl.style.display = "none";
+      }
+    }
+
     formFieldsEl.innerHTML = "";
     const entries = Object.entries(currentFormData);
     if (entries.length === 0) {
@@ -321,10 +333,17 @@
       .source {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.45);
-        margin-bottom: 10px;
+        margin-bottom: 4px;
         font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
       }
       .source-host { color: ${BRAND.purple}; }
+      .source-tech {
+        display: none;
+        font-size: 10.5px;
+        color: rgba(255, 255, 255, 0.5);
+        margin-bottom: 10px;
+        font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+      }
 
       .form-fields {
         display: flex; flex-direction: column; gap: 8px;
@@ -489,6 +508,7 @@
       <div class="section">
         <div class="section-label">Captured from</div>
         <div class="source"><span class="source-host">${location.hostname}</span></div>
+        <div class="source-tech"></div>
         <div class="form-fields"></div>
       </div>
 

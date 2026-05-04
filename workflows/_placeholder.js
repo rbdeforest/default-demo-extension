@@ -9,6 +9,18 @@
     name: "Placeholder Demo Workflow",
     description: "Replace me with real Default workflows",
     async *run(formData, context) {
+      const tech = context?.detectedTech || [];
+      if (tech.length) {
+        yield { step: "scan.tech-stack", status: "running" };
+        await sleep(60);
+        yield {
+          step: "scan.tech-stack",
+          status: "success",
+          durationMs: 60,
+          output: { wouldReplace: tech }
+        };
+      }
+
       yield { step: "enrich.apollo", status: "running", input: { email: formData.email } };
       await sleep(340);
       yield {
