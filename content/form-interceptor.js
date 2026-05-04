@@ -24,8 +24,8 @@
       position: absolute; top: -22px; left: -2px;
       background: ${BRAND.purple}; color: ${BRAND.white};
       font-family: "Inter", -apple-system, system-ui, sans-serif;
-      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-      padding: 3px 8px; border-radius: 3px 3px 0 0;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 4px 10px; border-radius: 4px 4px 0 0;
       pointer-events: none; white-space: nowrap; text-transform: uppercase;
     `;
     badge.textContent = "⚡ Default Demo · intercepted";
@@ -35,6 +35,8 @@
     return wrapper;
   }
 
+  const MARKER_PAD = 12;
+
   function positionMarker(formEl, marker) {
     const r = formEl.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) {
@@ -42,10 +44,10 @@
       return;
     }
     marker.style.opacity = "1";
-    marker.style.top = `${window.scrollY + r.top - 2}px`;
-    marker.style.left = `${window.scrollX + r.left - 2}px`;
-    marker.style.width = `${r.width + 4}px`;
-    marker.style.height = `${r.height + 4}px`;
+    marker.style.top = `${window.scrollY + r.top - MARKER_PAD}px`;
+    marker.style.left = `${window.scrollX + r.left - MARKER_PAD}px`;
+    marker.style.width = `${r.width + MARKER_PAD * 2}px`;
+    marker.style.height = `${r.height + MARKER_PAD * 2}px`;
   }
 
   function attachMarker(formEl) {
