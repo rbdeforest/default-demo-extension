@@ -61,21 +61,22 @@
   } catch (e) { teardown(); }
 
   function onSubmitIntercepted({ formData, vendor, source }) {
-    console.log("[Default Demo] intercept fired. autoOpenOverlay =", autoOpenOverlay, "vendor:", vendor);
+    const normalized = normalizeFormData(formData);
+    console.log("[Default Demo] intercept fired. autoOpenOverlay =", autoOpenOverlay, "vendor:", vendor, "normalized:", normalized);
     if (!autoOpenOverlay) {
-      console.log("[Default Demo] form intercepted (overlay disabled)", { vendor, formData });
+      console.log("[Default Demo] form intercepted (overlay disabled)", { vendor, formData: normalized });
       return;
     }
     if (window === window.top) {
       ns.overlay.open({
-        formData,
+        formData: normalized,
         vendor,
         sourceUrl: location.hostname
       });
     } else {
       safeSend({
         type: MessageTypes.FORM_INTERCEPTED,
-        payload: { formData, vendor, sourceUrl: location.hostname }
+        payload: { formData: normalized, vendor, sourceUrl: location.hostname }
       });
     }
   }
@@ -154,8 +155,27 @@
       try { value = f.element?.value ?? ""; } catch (e) {}
       formData[key] = value;
     });
-    return { formData, vendor: detected.vendor };
+    return { formData: normalizeFormData(formData), vendor: detected.vendor };
   }
+
+  // v1 only pushes Email + Name through to the workflow. Pull them out of
+  // whatever shape the source form used (first_name + last_name, full name, etc.).
+  function normalizeFormData(input) {
+    const result = { email: "", name: "" };
+    let firstName = "";
+    let lastName = "";
+    for (const [key, value] of Object.entries(input || {})) {
+      if (typeof value !== "string") continue;
+      const lk = String(key).toLowerCase();
+      if (!result.email && /e[-_]?mail/.test(lk)) result.email = value;
+      if (!firstName && /(^|[^a-z])(first[-_]?name|fname|firstname|givenname)([^a-z]|$)/.test(lk)) firstName = value;
+      if (!lastName && /(^|[^a-z])(last[-_]?name|lname|lastname|surname|familyname)([^a-z]|$)/.test(lk)) lastName = value;
+      if (!result.name && /^(name|full[-_]?name|fullname)$/.test(lk)) result.name = value;
+    }
+    if (!result.name && (firstName || lastName)) result.name = `${firstName} ${lastName}`.trim();
+    return result;
+  }
+  ns.normalizeFormData = normalizeFormData;
 
   // Saved-picks lookup. When set, form-detector returns a "manual" detected form.
   ns.savedPicks = [];
@@ -237,7 +257,7 @@
         return;
       }
       ns.overlay.open({
-        formData: message.payload?.formData ?? {},
+        formData: normalizeFormData(message.payload?.formData ?? {}),
         vendor: message.payload?.vendor || "form",
         sourceUrl: message.payload?.sourceUrl || location.hostname
       });

@@ -247,15 +247,10 @@
 
   function sandboxDefaults() {
     const ctx = ns.getProspectContext ? ns.getProspectContext() : null;
-    const company = ctx?.companyName || "Acme Corp";
     const domain = (ctx?.domain || "example.com").replace(/^www\./, "");
     return {
       email: `alex.kim@${domain}`,
-      first_name: "Alex",
-      last_name: "Kim",
-      company,
-      title: "VP RevOps",
-      employees: "5000"
+      name: "Alex Kim"
     };
   }
 
