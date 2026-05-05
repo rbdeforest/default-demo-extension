@@ -9,6 +9,8 @@
     { name: "Pardot",   patterns: [/pi\.pardot\.com/, /go\.pardot\.com/, /\.pardot\.com/] },
     { name: "Salesforce", patterns: [/cdn\.salesforce\.com/, /lightning\.force\.com/] },
     { name: "Drift",    patterns: [/js\.driftt\.com/, /widget\.drift\.com/, /js\.drift\.com/] },
+    { name: "ChiliPiper", patterns: [/chilipiper\.com/, /concierge-js/] },
+    { name: "Calendly", patterns: [/assets\.calendly\.com/, /calendly\.com\/embed/] },
     { name: "Intercom", patterns: [/widget\.intercom\.io/, /intercomcdn\.com/, /js\.intercomcdn\.com/] },
     { name: "Zendesk",  patterns: [/zdassets\.com/, /static\.zdassets\.com/] },
     { name: "Gong",     patterns: [/track\.gong\.io/, /\.gong\.io/] },

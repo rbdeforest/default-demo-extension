@@ -12,6 +12,8 @@
     hubspot: "HubSpot form",
     marketo: "Marketo form",
     pardot: "Pardot form",
+    chilipiper: "ChiliPiper form",
+    calendly: "Calendly form",
     "react-custom": "Custom form",
     manual: "Manual picks"
   };

@@ -288,6 +288,16 @@
     }];
   }
 
+  // Page-level vendor enrichers — detects scheduling/concierge layers that wrap
+  // an underlying HTML form (Chilipiper, Calendly, etc.) and relabels detected
+  // html/react-custom forms with the actual integration name.
+  function detectPageOverlayVendor() {
+    const sources = Array.from(document.querySelectorAll("script[src]")).map((s) => s.src || "");
+    if (sources.some((src) => /chilipiper\.com/i.test(src))) return "chilipiper";
+    if (sources.some((src) => /assets\.calendly\.com|calendly\.com\/embed/i.test(src))) return "calendly";
+    return null;
+  }
+
   function detectForms() {
     const marketo = detectMarketo(document);
     const hubspotInner = detectHubspotInnerForms(document);
@@ -307,7 +317,19 @@
     const vendoredIframes = detectVendoredIframes(document);
     const manual = detectManualPicks();
 
-    const all = [...manual, ...marketo, ...hubspotInner, ...html, ...reactCustom, ...vendoredIframes];
+    let all = [...manual, ...marketo, ...hubspotInner, ...html, ...reactCustom, ...vendoredIframes];
+
+    // Apply page-level overlay vendor (Chilipiper / Calendly) to plain html and react-custom hits.
+    const overlayVendor = detectPageOverlayVendor();
+    if (overlayVendor) {
+      all = all.map((d) => {
+        if (d.vendor === "html" || d.vendor === "react-custom") {
+          return { ...d, vendor: overlayVendor };
+        }
+        return d;
+      });
+    }
+
     return all.sort((a, b) => b.confidence - a.confidence);
   }
 

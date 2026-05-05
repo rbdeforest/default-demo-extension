@@ -22,12 +22,27 @@
   const OVERLAY_HOST_ID = "default-demo-overlay-root";
 
   function ensureMounted() {
-    if (host && document.body.contains(host)) return;
+    if (host && document.documentElement.contains(host)) return;
 
     host = document.createElement("div");
     host.id = OVERLAY_HOST_ID;
-    host.style.cssText = "all: initial; position: fixed; top: 0; right: 0; bottom: 0; width: 0; height: 100vh; z-index: 2147483647; pointer-events: none;";
+    // popover="manual" promotes the host into the browser's top layer so it
+    // sits above any <dialog showModal()>-style modals on the prospect page.
+    try { host.setAttribute("popover", "manual"); } catch (e) {}
+    host.style.cssText = [
+      "all: initial",
+      "position: fixed",
+      "top: 0", "right: 0", "bottom: 0", "left: auto",
+      "width: 0", "height: 100vh",
+      "max-width: none", "max-height: none",
+      "margin: 0", "padding: 0", "border: 0",
+      "background: transparent",
+      "overflow: visible",
+      "z-index: 2147483647",
+      "pointer-events: none"
+    ].join("; ") + ";";
     document.documentElement.appendChild(host);
+    try { host.showPopover && host.showPopover(); } catch (e) {}
 
     shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = TEMPLATE;
@@ -76,6 +91,8 @@
     hubspot: "HubSpot Form",
     marketo: "Marketo Form",
     pardot: "Pardot Form",
+    chilipiper: "ChiliPiper Form",
+    calendly: "Calendly Form",
     "react-custom": "Custom React Form",
     network: "Network Capture",
     sandbox: "Sandbox",

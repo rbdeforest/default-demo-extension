@@ -20,7 +20,10 @@
       "track\\.hubspot\\.com\\/__ptq",
       "\\.pardot\\.com\\/l\\/",
       "pi\\.pardot\\.com",
-      "go\\.pardot\\.com"
+      "go\\.pardot\\.com",
+      "\\.chilipiper\\.com",
+      "concierge\\.chilipiper",
+      "calendly\\.com\\/api"
     ].join("|"),
     "i"
   );
