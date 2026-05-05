@@ -28,11 +28,11 @@
     // top layer (above any z-index, above any other modal). Yes, it makes the
     // rest of the page inert while open — the AE has to close our overlay to
     // get back to the prospect's page, which is fine for a demo trace.
-    host = document.createElement("dialog");
+    // <div> host with popover="manual" — gets top-layer behavior on every modern
+    // Chromium build, and unlike <dialog> it supports shadow DOM.
+    host = document.createElement("div");
     host.id = OVERLAY_HOST_ID;
-    // The host occupies the full 480px right rail at all times so the dialog's
-    // paint area (and therefore its top-layer rendering) covers the panel.
-    // Slide-in animation lives on the inner .panel element.
+    try { host.setAttribute("popover", "manual"); } catch (e) {}
     host.style.cssText = [
       "position: fixed",
       "top: 0", "right: 0", "bottom: 0", "left: auto",
@@ -47,14 +47,6 @@
       "z-index: 2147483647"
     ].join("; ") + ";";
     document.documentElement.appendChild(host);
-
-    // Disable the default <dialog> backdrop dim so we don't grey out the page.
-    if (!document.getElementById("default-demo-backdrop-fix")) {
-      const fix = document.createElement("style");
-      fix.id = "default-demo-backdrop-fix";
-      fix.textContent = `#${OVERLAY_HOST_ID}::backdrop { background: transparent; }`;
-      document.head.appendChild(fix);
-    }
 
     shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = TEMPLATE;
@@ -298,16 +290,18 @@
 
   function ensureTopLayer() {
     if (!host) return;
+    // Re-promote into the top layer on every open so we sit above any modal
+    // the page may have promoted after we mounted (LIFO ordering).
     try {
-      if (host.open) host.close();
-      if (typeof host.showModal === "function") {
-        host.showModal();
-        console.log("[Default Demo] overlay showModal — open:", host.open);
-      } else {
-        console.log("[Default Demo] showModal not available on host");
+      if (typeof host.matches === "function" && host.matches(":popover-open")) {
+        host.hidePopover();
+      }
+      if (typeof host.showPopover === "function") {
+        host.showPopover();
+        console.log("[Default Demo] overlay showPopover — open:", host.matches(":popover-open"));
       }
     } catch (e) {
-      console.warn("[Default Demo] showModal failed:", e?.message);
+      console.warn("[Default Demo] showPopover failed:", e?.message);
     }
   }
 
@@ -347,7 +341,11 @@
     cancelRun();
     setTimeout(() => {
       host.style.pointerEvents = "none";
-      try { if (host.open) host.close(); } catch (e) {}
+      try {
+        if (typeof host.hidePopover === "function" && host.matches(":popover-open")) {
+          host.hidePopover();
+        }
+      } catch (e) {}
     }, 240);
   }
 
