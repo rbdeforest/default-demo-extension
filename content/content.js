@@ -34,7 +34,8 @@
   function applyOverlayVisibility(visible) {
     autoOpenOverlay = !!visible;
     ns.overlayVisible = !!visible;
-    if (typeof ns.setMarkersVisible === "function") ns.setMarkersVisible(!!visible);
+    // Markers always stay on so the AE knows interception is active. Toggle
+    // only controls the slide-in trace panel.
     if (!visible && window === window.top && ns.overlay?.isOpen?.()) {
       ns.overlay.close("auto");
     }
