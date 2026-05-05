@@ -34,12 +34,14 @@
   try {
     if (chrome.storage?.sync) {
       chrome.storage.sync.get({ autoOpenOverlay: true }, (s) => {
-        autoOpenOverlay = !!s.autoOpenOverlay;
+        try { autoOpenOverlay = !!s.autoOpenOverlay; } catch (e) { teardown(); }
       });
       chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === "sync" && "autoOpenOverlay" in changes) {
-          autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
-        }
+        try {
+          if (area === "sync" && "autoOpenOverlay" in changes) {
+            autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
+          }
+        } catch (e) { teardown(); }
       });
     }
   } catch (e) { teardown(); }
@@ -140,7 +142,8 @@
     return { formData, vendor: detected.vendor };
   }
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  function onRuntimeMessage(message, sender, sendResponse) {
+    if (!extensionAlive) return;
     if (message?.type === MessageTypes.GET_DETECTED_FORMS) {
       sendResponse({
         url: location.href,
@@ -194,5 +197,15 @@
         sourceUrl: message.payload?.sourceUrl || location.hostname
       });
     }
-  });
+  }
+
+  try {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      try {
+        return onRuntimeMessage(message, sender, sendResponse);
+      } catch (err) {
+        if (err?.message?.includes("Extension context invalidated")) teardown();
+      }
+    });
+  } catch (e) { teardown(); }
 })();
