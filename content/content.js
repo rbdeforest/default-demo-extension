@@ -31,24 +31,28 @@
     try { observer?.disconnect(); } catch (e) {}
   }
 
+  function applyOverlayVisibility(visible) {
+    autoOpenOverlay = !!visible;
+    ns.overlayVisible = !!visible;
+    if (typeof ns.setMarkersVisible === "function") ns.setMarkersVisible(!!visible);
+    if (!visible && window === window.top && ns.overlay?.isOpen?.()) {
+      ns.overlay.close("auto");
+    }
+  }
+
   try {
     if (chrome.storage?.local) {
       chrome.storage.local.get({ autoOpenOverlay: true }, (s) => {
         try {
-          autoOpenOverlay = !!s.autoOpenOverlay;
-          console.log("[Default Demo] auto-open initial:", autoOpenOverlay);
+          applyOverlayVisibility(!!s.autoOpenOverlay);
+          console.log("[Default Demo] overlay visible (initial):", autoOpenOverlay);
         } catch (e) { teardown(); }
       });
       chrome.storage.onChanged.addListener((changes, area) => {
         try {
           if (area === "local" && "autoOpenOverlay" in changes) {
-            autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
-            console.log("[Default Demo] auto-open changed:", autoOpenOverlay);
-            // Toggling OFF should immediately close any open overlay so the AE
-            // can flip the switch mid-test without dragging the panel away.
-            if (!autoOpenOverlay && window === window.top && ns.overlay?.isOpen?.()) {
-              ns.overlay.close("auto");
-            }
+            applyOverlayVisibility(!!changes.autoOpenOverlay.newValue);
+            console.log("[Default Demo] overlay visible (changed):", autoOpenOverlay);
           }
         } catch (e) { teardown(); }
       });

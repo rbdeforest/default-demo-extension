@@ -53,6 +53,7 @@
   function attachMarker(formEl) {
     const marker = ensureMarker(formEl);
     positionMarker(formEl, marker);
+    if (!ns.overlayVisible) marker.style.display = "none";
     const reposition = () => positionMarker(formEl, marker);
     window.addEventListener("scroll", reposition, { passive: true });
     window.addEventListener("resize", reposition);
@@ -66,6 +67,14 @@
       markers.delete(formEl);
     };
   }
+
+  // Toggle every existing marker's visibility. Called when the popup toggle changes.
+  function setMarkersVisible(visible) {
+    document.querySelectorAll("." + MARKER_CLASS).forEach((el) => {
+      el.style.display = visible ? "block" : "none";
+    });
+  }
+  ns.setMarkersVisible = setMarkersVisible;
 
   function readFieldValues(detected) {
     const data = {};

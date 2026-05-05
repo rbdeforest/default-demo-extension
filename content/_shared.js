@@ -21,6 +21,9 @@
   };
 
   ns.INTERCEPT_ENABLED = true;
+  // Whether the visual overlay + marker should be shown. Interception always
+  // happens regardless. Synced from chrome.storage.local in content.js.
+  ns.overlayVisible = true;
 
   // User-intent tracking — used to gate the network injector so it doesn't fire on
   // background API calls in SaaS apps. Set whenever the user clicks anything that
