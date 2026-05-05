@@ -92,13 +92,31 @@
     return 0.35;
   }
 
+  function isLeadShapedForm(form) {
+    // 3+ visible fields including a real email input → likely a demo/contact form,
+    // even if it lives inside a dialog/modal/menu.
+    const inputs = Array.from(form.querySelectorAll(FIELD_SELECTOR))
+      .filter((el) => !SKIP_INPUT_TYPES.has((el.getAttribute("type") || "").toLowerCase()));
+    if (inputs.length < 3) return false;
+    return inputs.some((el) => {
+      if ((el.getAttribute("type") || "").toLowerCase() === "email") return true;
+      const haystack = `${el.getAttribute("name") || ""} ${el.id || ""} ${el.getAttribute("placeholder") || ""}`.toLowerCase();
+      return /e[-_]?mail/.test(haystack);
+    });
+  }
+
   function detectHtmlForms(root) {
-    if (!looksLikeMarketingPage()) return []; // skip on web apps — too many false positives
+    if (!looksLikeMarketingPage()) return [];
     const forms = Array.from(root.querySelectorAll("form"));
     return forms
-      .filter((form) => !/^mktoForm_/.test(form.id || ""))   // Marketo handled separately
-      .filter((form) => !/^hsForm_/.test(form.id || ""))     // HubSpot handled separately
-      .filter((form) => !form.closest(SKIP_ANCESTOR_SELECTOR)) // search bars, modals, etc.
+      .filter((form) => !/^mktoForm_/.test(form.id || ""))
+      .filter((form) => !/^hsForm_/.test(form.id || ""))
+      .filter((form) => {
+        // Most ancestor-restricted spots are search/menu noise — skip.
+        // BUT keep forms inside dialogs/modals if they're shaped like a real lead form.
+        if (!form.closest(SKIP_ANCESTOR_SELECTOR)) return true;
+        return isLeadShapedForm(form);
+      })
       .map((form) => {
         const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
           .map(extractField)
@@ -112,7 +130,7 @@
           confidence: scoreConfidence(fields)
         };
       })
-      .filter((d) => d.fields.length >= 2); // single-input forms are usually search boxes
+      .filter((d) => d.fields.length >= 2);
   }
 
   function detectMarketo(root) {
