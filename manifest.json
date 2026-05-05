@@ -40,7 +40,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["overlay/*", "assets/*", "sandbox/*"],
+      "resources": ["overlay/*", "assets/*"],
       "matches": ["<all_urls>"]
     }
   ],

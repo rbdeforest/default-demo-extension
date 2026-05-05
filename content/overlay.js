@@ -75,8 +75,13 @@
     currentFormData = { ...(data || {}) };
     titleEl.textContent = vendor || "form";
 
+    const sourceLineEl = shadow.querySelector(".source-line");
     const sourceEl = shadow.querySelector(".source-host");
-    sourceEl.textContent = source || location.hostname;
+    if (vendor === "sandbox") {
+      if (sourceLineEl) sourceLineEl.textContent = "Sandbox · no form on this page";
+    } else {
+      if (sourceLineEl) sourceLineEl.innerHTML = `Captured from <span class="source-host">${source || location.hostname}</span>`;
+    }
 
     const techEl = shadow.querySelector(".source-tech");
     const ctx = ns.getProspectContext ? ns.getProspectContext() : null;
@@ -225,14 +230,34 @@
     setTimeout(() => toastEl.classList.remove("visible"), 4000);
   }
 
+  function sandboxDefaults() {
+    const ctx = ns.getProspectContext ? ns.getProspectContext() : null;
+    const company = ctx?.companyName || "Acme Corp";
+    const domain = (ctx?.domain || "example.com").replace(/^www\./, "");
+    return {
+      email: `alex.kim@${domain}`,
+      first_name: "Alex",
+      last_name: "Kim",
+      company,
+      title: "VP RevOps",
+      employees: "5000"
+    };
+  }
+
   function open(opts = {}) {
     if (window !== window.top) return;
-    // Suppress reopens for ~5s after an explicit user close, unless this open is
-    // being triggered by a popup action (which sets force).
     if (!opts.force && Date.now() - lastUserCloseAt < 5000) return;
     ensureMounted();
-    if (opts.formData) setFormData(opts.formData, opts.vendor, opts.sourceUrl);
-    else if (Object.keys(currentFormData).length === 0) setFormData({}, opts.vendor, opts.sourceUrl);
+
+    if (opts.mode === "sandbox") {
+      const defaults = sandboxDefaults();
+      setFormData(defaults, "sandbox", opts.sourceUrl);
+    } else if (opts.formData) {
+      setFormData(opts.formData, opts.vendor, opts.sourceUrl);
+    } else if (Object.keys(currentFormData).length === 0) {
+      setFormData({}, opts.vendor, opts.sourceUrl);
+    }
+
     if (opts.workflowId) {
       currentWorkflowId = opts.workflowId;
       workflowSelectEl.value = opts.workflowId;
@@ -511,8 +536,8 @@
       </div>
 
       <div class="section">
-        <div class="section-label">Captured from</div>
-        <div class="source"><span class="source-host">${location.hostname}</span></div>
+        <div class="section-label">Source</div>
+        <div class="source"><span class="source-line">Captured from <span class="source-host">${location.hostname}</span></span></div>
         <div class="source-tech"></div>
         <div class="form-fields"></div>
       </div>

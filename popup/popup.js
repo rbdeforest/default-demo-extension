@@ -114,14 +114,13 @@ async function openOverlay({ formIndex = selectedFormIndex } = {}) {
 openBtn.addEventListener("click", () => openOverlay());
 
 sandboxBtn.addEventListener("click", async () => {
-  // For now, sandbox === open overlay with no form selected. Real sandbox form lands in step 11.
   const tab = await activeTab();
   if (!tab?.id) return;
   chrome.tabs.sendMessage(
     tab.id,
     {
       type: "open-overlay",
-      payload: { formIndex: -1, workflowId: workflowPicker.value }
+      payload: { mode: "sandbox", workflowId: workflowPicker.value }
     },
     { frameId: 0 },
     () => {

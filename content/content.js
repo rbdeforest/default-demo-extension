@@ -113,16 +113,26 @@
 
     if (message?.type === MessageTypes.OPEN_OVERLAY) {
       if (window !== window.top) return;
-      const idx = message.payload?.formIndex ?? 0;
-      const detected = idx >= 0 ? detectedForms[idx] : null;
-      const { formData, vendor } = buildFormDataFromDetected(detected);
-      ns.overlay.open({
-        formData,
-        vendor,
-        sourceUrl: location.hostname,
-        workflowId: message.payload?.workflowId,
-        force: true // popup-initiated open should override the user-close cooldown
-      });
+      const payload = message.payload || {};
+      if (payload.mode === "sandbox" || payload.formIndex === -1) {
+        ns.overlay.open({
+          mode: "sandbox",
+          sourceUrl: location.hostname,
+          workflowId: payload.workflowId,
+          force: true
+        });
+      } else {
+        const idx = payload.formIndex ?? 0;
+        const detected = detectedForms[idx];
+        const { formData, vendor } = buildFormDataFromDetected(detected);
+        ns.overlay.open({
+          formData,
+          vendor,
+          sourceUrl: location.hostname,
+          workflowId: payload.workflowId,
+          force: true
+        });
+      }
       sendResponse({ ok: true });
       return true;
     }
