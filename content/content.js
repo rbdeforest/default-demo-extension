@@ -71,12 +71,14 @@
       ns.overlay.open({
         formData: normalized,
         vendor,
-        sourceUrl: location.hostname
+        sourceUrl: location.hostname,
+        autoRun: true,
+        force: true
       });
     } else {
       safeSend({
         type: MessageTypes.FORM_INTERCEPTED,
-        payload: { formData: normalized, vendor, sourceUrl: location.hostname }
+        payload: { formData: normalized, vendor, sourceUrl: location.hostname, autoRun: true }
       });
     }
   }
@@ -90,6 +92,26 @@
     });
   }
 
+  let hasAutoOpened = false;
+
+  function maybeAutoOpen() {
+    if (hasAutoOpened) return;
+    if (!autoOpenOverlay) return;
+    if (window !== window.top) return;
+    if (!detectedForms || detectedForms.length === 0) return;
+    if (!ns.overlay?.open) return;
+
+    const detected = detectedForms[0];
+    if (detected.element instanceof HTMLIFrameElement) return; // wait for the inner frame to intercept
+    const { formData, vendor } = buildFormDataFromDetected(detected);
+    ns.overlay.open({
+      formData,
+      vendor,
+      sourceUrl: location.hostname
+    });
+    hasAutoOpened = true;
+  }
+
   function runDetection() {
     if (!extensionAlive) return;
     detectedForms = ns.detectForms();
@@ -99,6 +121,7 @@
       payload: { url: location.href, forms: summary }
     });
     attachInterceptors();
+    maybeAutoOpen();
   }
 
   runDetection();
@@ -259,7 +282,9 @@
       ns.overlay.open({
         formData: normalizeFormData(message.payload?.formData ?? {}),
         vendor: message.payload?.vendor || "form",
-        sourceUrl: message.payload?.sourceUrl || location.hostname
+        sourceUrl: message.payload?.sourceUrl || location.hostname,
+        autoRun: !!message.payload?.autoRun,
+        force: true
       });
     }
   }

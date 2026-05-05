@@ -80,6 +80,19 @@
     workflowSelectEl.addEventListener("change", (e) => {
       currentWorkflowId = e.target.value;
     });
+
+    // In-overlay "Show" toggle — same storage key as the popup.
+    const toggleInput = shadow.querySelector(".overlay-toggle-input");
+    if (toggleInput && chrome.storage?.local) {
+      try {
+        chrome.storage.local.get({ autoOpenOverlay: true }, (s) => {
+          try { toggleInput.checked = !!s.autoOpenOverlay; } catch (e) {}
+        });
+        toggleInput.addEventListener("change", () => {
+          try { chrome.storage.local.set({ autoOpenOverlay: toggleInput.checked }); } catch (e) {}
+        });
+      } catch (e) {}
+    }
   }
 
   function populateWorkflowOptions() {
@@ -321,6 +334,10 @@
       host.style.pointerEvents = "auto";
       root.classList.add("open");
     });
+    if (opts.autoRun) {
+      // Tiny delay so the user sees the captured values flash in before the trace starts.
+      setTimeout(() => { if (!currentRun) runWorkflow(); }, 220);
+    }
   }
 
   function close(reason) {
@@ -555,19 +572,37 @@
         font-size: 12px;
         font-family: inherit;
       }
-      .mode-pill {
+      .overlay-toggle {
         margin-left: auto;
-        font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: rgba(255, 255, 255, 0.45);
-        padding: 4px 8px;
-        border: 1px dashed rgba(255, 255, 255, 0.18);
-        border-radius: 4px;
-        cursor: not-allowed;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        user-select: none;
       }
-      .mode-pill[title]:hover::after { /* tooltip handled natively */ }
+      .overlay-toggle input { display: none; }
+      .overlay-toggle-track {
+        position: relative;
+        width: 26px;
+        height: 14px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        transition: background 140ms ease;
+      }
+      .overlay-toggle-thumb {
+        position: absolute;
+        top: 2px; left: 2px;
+        width: 10px; height: 10px;
+        background: ${BRAND.white};
+        border-radius: 50%;
+        transition: left 140ms ease;
+      }
+      .overlay-toggle input:checked ~ .overlay-toggle-track { background: ${BRAND.purple}; }
+      .overlay-toggle input:checked ~ .overlay-toggle-track .overlay-toggle-thumb { left: 14px; }
+      .overlay-toggle-label {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.75);
+      }
 
       .safety-toast {
         position: absolute;
@@ -614,7 +649,11 @@
       <div class="actions">
         <button class="run-btn" data-state="idle">Run</button>
         <select class="workflow-select"></select>
-        <span class="mode-pill" title="Live mode coming in v2">Simulation</span>
+        <label class="overlay-toggle" title="Hide on this page (still blocks form)">
+          <input type="checkbox" class="overlay-toggle-input" checked />
+          <span class="overlay-toggle-track"><span class="overlay-toggle-thumb"></span></span>
+          <span class="overlay-toggle-label">Show</span>
+        </label>
       </div>
     </div>
   `;
