@@ -110,10 +110,8 @@
     const forms = Array.from(root.querySelectorAll("form"));
     return forms
       .filter((form) => !/^mktoForm_/.test(form.id || ""))
-      .filter((form) => !/^hsForm_/.test(form.id || ""))
+      .filter((form) => !isHubspotForm(form))
       .filter((form) => {
-        // Most ancestor-restricted spots are search/menu noise — skip.
-        // BUT keep forms inside dialogs/modals if they're shaped like a real lead form.
         if (!form.closest(SKIP_ANCESTOR_SELECTOR)) return true;
         return isLeadShapedForm(form);
       })
@@ -150,9 +148,26 @@
     });
   }
 
+  function isHubspotForm(form) {
+    if (/^hsForm_/.test(form.id || "")) return true;
+    const action = (form.getAttribute("action") || "").toLowerCase();
+    if (/hsforms\.com|forms\.hubspot\.com/.test(action)) return true;
+    if (form.closest('[data-control-id="hubspot-form-ssr"]')) return true;
+    if (form.closest("[data-portal-id]") && form.closest("[data-form-id]")) return true;
+    return false;
+  }
+
   function detectHubspotInnerForms(root) {
-    // HubSpot wraps each form as <form id="hsForm_...">. Works inside the iframe.
-    const forms = Array.from(root.querySelectorAll('form[id^="hsForm_"]'));
+    // Classic iframe form: <form id="hsForm_...">
+    // SSR variant: form lives in parent page, parent has data-control-id="hubspot-form-ssr"
+    // Action variant: form posts to *.hsforms.com / forms.hubspot.com
+    const seen = new Set();
+    const forms = Array.from(root.querySelectorAll("form")).filter((f) => {
+      if (!isHubspotForm(f)) return false;
+      if (seen.has(f)) return false;
+      seen.add(f);
+      return true;
+    });
     return forms.map((form) => {
       const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
         .map(extractField)
