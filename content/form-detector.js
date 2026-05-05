@@ -10,6 +10,24 @@
   // generic SaaS-app buttons like "Subscribe to notifications" or "Submit ticket".
   const TRIGGER_TEXT_RE = /\b(get a demo|request demo|book a demo|talk to sales|contact sales|schedule a demo|get started|sign up|start (free )?trial|request access)\b/i;
 
+  const SKIP_ANCESTOR_SELECTOR = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo], [role=dialog], [role=menu], [role=menubar], [role=tablist], aside";
+
+  // SaaS-app hostnames where blanket form detection mostly false-positives. For
+  // these we still run vendor-specific detection (Marketo/HubSpot/Pardot by
+  // form-id and iframe URL), but skip generic <form> + react-custom matching.
+  const SAAS_HOST_RE = /^(app|mail|admin|console|dashboard|portal|my|inbox|cabinet|secure|account|accounts|workspace|teams)\.|(^|\.)(linkedin|x|twitter|facebook|instagram|youtube|reddit|github|gitlab|bitbucket|notion|figma|slack|miro|airtable|asana|monday|trello|jira|atlassian|salesforce|hubspot|gong|outreach|salesloft|zoom|intercom|zendesk|stripe|loom|coda|clickup|linear|height|fellow|amplitude|mixpanel|segment|posthog|plausible|clearbit|apollo|zoominfo)\.[a-z.]+$/i;
+
+  function looksLikeMarketingPage() {
+    const host = location.hostname.toLowerCase();
+    // Local testing always allowed.
+    if (!host || host === "localhost" || /^(127\.|192\.168\.|10\.)/.test(host) || host.endsWith(".local")) return true;
+    if (SAAS_HOST_RE.test(host)) return false;
+    if (document.querySelectorAll('[contenteditable="true"]').length > 2) return false;
+    const hasAuthUI = document.querySelector('[aria-label*="profile" i], [aria-label*="sign out" i], [aria-label*="log out" i]');
+    if (hasAuthUI) return false;
+    return true;
+  }
+
   function resolveLabel(input) {
     if (input.id) {
       const explicit = input.ownerDocument.querySelector(
@@ -75,10 +93,12 @@
   }
 
   function detectHtmlForms(root) {
+    if (!looksLikeMarketingPage()) return []; // skip on web apps — too many false positives
     const forms = Array.from(root.querySelectorAll("form"));
     return forms
       .filter((form) => !/^mktoForm_/.test(form.id || ""))   // Marketo handled separately
       .filter((form) => !/^hsForm_/.test(form.id || ""))     // HubSpot handled separately
+      .filter((form) => !form.closest(SKIP_ANCESTOR_SELECTOR)) // search bars, modals, etc.
       .map((form) => {
         const fields = Array.from(form.querySelectorAll(FIELD_SELECTOR))
           .map(extractField)
@@ -91,7 +111,8 @@
           fields,
           confidence: scoreConfidence(fields)
         };
-      });
+      })
+      .filter((d) => d.fields.length >= 2); // single-input forms are usually search boxes
   }
 
   function detectMarketo(root) {
@@ -165,24 +186,6 @@
 
   function buttonText(btn) {
     return ((btn.textContent || btn.value || btn.getAttribute("aria-label") || "") + "").trim();
-  }
-
-  const SKIP_ANCESTOR_SELECTOR = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo], [role=dialog], [role=menu], [role=menubar], [role=tablist], aside";
-
-  // SaaS-app hostnames where react-custom heuristic would mostly false-positive.
-  const SAAS_HOST_RE = /^(app|mail|admin|console|dashboard|portal|my|inbox|cabinet|secure|account|accounts|workspace|teams)\.|(^|\.)(linkedin|x|twitter|facebook|instagram|youtube|reddit|github|gitlab|bitbucket|notion|figma|slack|figjam|miro|airtable|asana|monday|trello|jira|atlassian|salesforce|hubspot|gong|outreach|salesloft|zoom|intercom|zendesk|stripe|drive\.google|mail\.google|calendar\.google|docs\.google|sheets\.google|keep\.google|outlook\.live|teams\.microsoft|sharepoint|loom|coda|clickup|linear|height|fellow|amplitude|mixpanel|segment|posthog|plausible|clearbit|apollo|zoominfo)\.[a-z.]+$/i;
-
-  function looksLikeMarketingPage() {
-    const host = location.hostname.toLowerCase();
-    if (SAAS_HOST_RE.test(host)) return false;
-    // Many contenteditable elements signal a rich-text app, not a marketing page.
-    if (document.querySelectorAll('[contenteditable="true"]').length > 2) return false;
-    // og:title is a strong marketing-page indicator.
-    if (document.querySelector('meta[property^="og:"]')) return true;
-    // Fallback: short doc title + no auth UI hints.
-    const hasAuthUI = document.querySelector('[aria-label*="profile" i], [aria-label*="sign out" i], [aria-label*="log out" i]');
-    if (hasAuthUI) return false;
-    return true;
   }
 
   function detectReactCustom(root, alreadyClaimed) {
