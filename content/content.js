@@ -49,8 +49,9 @@
         } catch (e) { teardown(); }
       });
       chrome.storage.onChanged.addListener((changes, area) => {
+        if (!isExtensionAlive()) { teardown(); return; }
         try {
-          if (area === "local" && "autoOpenOverlay" in changes) {
+          if (area === "local" && changes && "autoOpenOverlay" in changes) {
             applyOverlayVisibility(!!changes.autoOpenOverlay.newValue);
             console.log("[Default Demo] overlay visible (changed):", autoOpenOverlay);
           }
