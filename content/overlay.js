@@ -30,15 +30,19 @@
     // get back to the prospect's page, which is fine for a demo trace.
     host = document.createElement("dialog");
     host.id = OVERLAY_HOST_ID;
+    // The host occupies the full 480px right rail at all times so the dialog's
+    // paint area (and therefore its top-layer rendering) covers the panel.
+    // Slide-in animation lives on the inner .panel element.
     host.style.cssText = [
       "position: fixed",
       "top: 0", "right: 0", "bottom: 0", "left: auto",
-      "width: 0", "height: 100vh",
+      "width: 480px", "height: 100vh",
       "max-width: none", "max-height: none",
       "margin: 0", "padding: 0", "border: 0",
       "background: transparent",
       "overflow: visible",
       "color: inherit",
+      "display: block",
       "pointer-events: none",
       "z-index: 2147483647"
     ].join("; ") + ";";
@@ -281,12 +285,17 @@
 
   function ensureTopLayer() {
     if (!host) return;
-    // Top-layer is LIFO. Close + re-open the dialog so we're always the most
-    // recent entry, above any modal the prospect page may have opened.
     try {
       if (host.open) host.close();
-      if (typeof host.showModal === "function") host.showModal();
-    } catch (e) {}
+      if (typeof host.showModal === "function") {
+        host.showModal();
+        console.log("[Default Demo] overlay showModal — open:", host.open);
+      } else {
+        console.log("[Default Demo] showModal not available on host");
+      }
+    } catch (e) {
+      console.warn("[Default Demo] showModal failed:", e?.message);
+    }
   }
 
   function open(opts = {}) {
@@ -309,7 +318,6 @@
       workflowSelectEl.value = opts.workflowId;
     }
     requestAnimationFrame(() => {
-      host.style.width = "480px";
       host.style.pointerEvents = "auto";
       root.classList.add("open");
     });
@@ -321,7 +329,6 @@
     root.classList.remove("open");
     cancelRun();
     setTimeout(() => {
-      host.style.width = "0";
       host.style.pointerEvents = "none";
       try { if (host.open) host.close(); } catch (e) {}
     }, 240);
