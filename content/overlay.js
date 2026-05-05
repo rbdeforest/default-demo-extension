@@ -5,6 +5,8 @@
   const ns = window.DefaultDemo;
   const BRAND = ns.BRAND;
 
+  const CALENDAR_URL = "https://scheduler.default.com/default/ryan-deforest/30";
+
   let host = null;
   let shadow = null;
   let root = null; // <div class="panel">
@@ -14,6 +16,8 @@
   let runBtn = null;
   let titleEl = null;
   let toastEl = null;
+  let calendarSectionEl = null;
+  let calendarIframeEl = null;
   let currentFormData = {};
   let currentWorkflowId = "placeholder";
   let currentRun = null; // { abort: fn, generator }
@@ -58,6 +62,10 @@
     runBtn = shadow.querySelector(".run-btn");
     titleEl = shadow.querySelector(".vendor-pill");
     toastEl = shadow.querySelector(".safety-toast");
+    calendarSectionEl = shadow.querySelector(".calendar-section");
+    calendarIframeEl = shadow.querySelector(".calendar-iframe");
+
+    shadow.querySelector(".calendar-collapse").addEventListener("click", hideCalendar);
 
     populateWorkflowOptions();
 
@@ -173,6 +181,19 @@
     traceListEl.innerHTML = "";
   }
 
+  function showCalendar(url) {
+    if (!calendarSectionEl || !calendarIframeEl) return;
+    if (calendarIframeEl.src !== url) calendarIframeEl.src = url;
+    calendarSectionEl.hidden = false;
+    root.classList.add("has-calendar");
+  }
+
+  function hideCalendar() {
+    if (!calendarSectionEl) return;
+    calendarSectionEl.hidden = true;
+    root.classList.remove("has-calendar");
+  }
+
   function pushTraceEvent(event) {
     const ts = new Date();
     const stamp =
@@ -259,7 +280,11 @@
         if (aborted) break;
         pushTraceEvent(event);
       }
-      if (!aborted) showToast(`Form intercepted by Default Demo — no data was sent to ${location.hostname}`);
+      if (!aborted) {
+        showToast(`Form intercepted by Default Demo — no data was sent to ${location.hostname}`);
+        // Reveal the live scheduler — what the lead would see right now.
+        showCalendar(CALENDAR_URL);
+      }
     } catch (err) {
       pushTraceEvent({ step: "runner", status: "failed", error: err?.message || String(err) });
     } finally {
@@ -339,6 +364,7 @@
     if (reason !== "auto") lastUserCloseAt = Date.now();
     root.classList.remove("open");
     cancelRun();
+    hideCalendar();
     setTimeout(() => {
       host.style.pointerEvents = "none";
       try {
@@ -541,6 +567,50 @@
         50% { opacity: 0.4; }
       }
 
+      .calendar-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 380px;
+        max-height: 60vh;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: ${BRAND.white};
+        animation: cal-slide-up 280ms cubic-bezier(0.16, 1, 0.3, 1);
+        flex-shrink: 0;
+      }
+      .calendar-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px;
+        background: ${BRAND.black};
+        color: ${BRAND.white};
+        font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+      }
+      .calendar-collapse {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: ${BRAND.white};
+        cursor: pointer;
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 3px;
+      }
+      .calendar-collapse:hover { border-color: ${BRAND.purple}; color: ${BRAND.purple}; }
+      .calendar-iframe {
+        flex: 1;
+        width: 100%;
+        border: none;
+        background: ${BRAND.white};
+      }
+      @keyframes cal-slide-up {
+        from { transform: translateY(20px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+      }
+      /* When calendar is showing, trim the trace area so both fit. */
+      .panel.has-calendar .trace-section { max-height: 200px; }
+      .panel.has-calendar .trace-list { max-height: 160px; }
+
       .actions {
         display: flex; align-items: center; gap: 8px;
         padding: 12px 18px;
@@ -640,6 +710,14 @@
       <div class="section trace-section">
         <div class="section-label">Workflow trace</div>
         <div class="trace-list"></div>
+      </div>
+
+      <div class="calendar-section" hidden>
+        <div class="calendar-header">
+          <span>Calendar · what the lead sees right now</span>
+          <button class="calendar-collapse" aria-label="Hide calendar">↘</button>
+        </div>
+        <iframe class="calendar-iframe" title="Scheduler"></iframe>
       </div>
 
       <div class="safety-toast"></div>
