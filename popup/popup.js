@@ -5,12 +5,13 @@ const sandboxBtn = document.getElementById("run-sandbox");
 const workflowPicker = document.getElementById("workflow-picker");
 const autoOpenToggle = document.getElementById("auto-open-toggle");
 
-chrome.storage.sync.get({ autoOpenOverlay: true }, ({ autoOpenOverlay }) => {
+chrome.storage.local.get({ autoOpenOverlay: true }, ({ autoOpenOverlay }) => {
   autoOpenToggle.checked = !!autoOpenOverlay;
 });
 
 autoOpenToggle.addEventListener("change", () => {
-  chrome.storage.sync.set({ autoOpenOverlay: autoOpenToggle.checked });
+  chrome.storage.local.set({ autoOpenOverlay: autoOpenToggle.checked });
+  statusEl.textContent = `auto-open ${autoOpenToggle.checked ? "ON" : "OFF"}`;
 });
 
 const VENDOR_LABEL = {

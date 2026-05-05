@@ -32,14 +32,18 @@
   }
 
   try {
-    if (chrome.storage?.sync) {
-      chrome.storage.sync.get({ autoOpenOverlay: true }, (s) => {
-        try { autoOpenOverlay = !!s.autoOpenOverlay; } catch (e) { teardown(); }
+    if (chrome.storage?.local) {
+      chrome.storage.local.get({ autoOpenOverlay: true }, (s) => {
+        try {
+          autoOpenOverlay = !!s.autoOpenOverlay;
+          console.log("[Default Demo] auto-open initial:", autoOpenOverlay);
+        } catch (e) { teardown(); }
       });
       chrome.storage.onChanged.addListener((changes, area) => {
         try {
-          if (area === "sync" && "autoOpenOverlay" in changes) {
+          if (area === "local" && "autoOpenOverlay" in changes) {
             autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
+            console.log("[Default Demo] auto-open changed:", autoOpenOverlay);
             // Toggling OFF should immediately close any open overlay so the AE
             // can flip the switch mid-test without dragging the panel away.
             if (!autoOpenOverlay && window === window.top && ns.overlay?.isOpen?.()) {
@@ -52,6 +56,7 @@
   } catch (e) { teardown(); }
 
   function onSubmitIntercepted({ formData, vendor, source }) {
+    console.log("[Default Demo] intercept fired. autoOpenOverlay =", autoOpenOverlay);
     if (!autoOpenOverlay) {
       console.log("[Default Demo] form intercepted (overlay disabled)", { vendor, formData });
       return;
