@@ -107,6 +107,20 @@
     hasAutoOpened = true;
   }
 
+  let injectorDisabled = false;
+
+  function syncInjectorState() {
+    const isMarketing = !ns.looksLikeMarketingPage || ns.looksLikeMarketingPage();
+    const shouldDisable = !isMarketing;
+    if (shouldDisable === injectorDisabled) return;
+    injectorDisabled = shouldDisable;
+    try {
+      window.dispatchEvent(new CustomEvent(
+        shouldDisable ? "default-demo:disable-injector" : "default-demo:enable-injector"
+      ));
+    } catch (e) {}
+  }
+
   function runDetection() {
     if (!extensionAlive) return;
     detectedForms = ns.detectForms();
@@ -115,6 +129,7 @@
       type: MessageTypes.FORMS_DETECTED,
       payload: { url: location.href, forms: summary }
     });
+    syncInjectorState();
     attachInterceptors();
     maybeAutoOpen();
   }

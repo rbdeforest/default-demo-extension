@@ -12,21 +12,40 @@
 
   const SKIP_ANCESTOR_SELECTOR = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo], [role=dialog], [role=menu], [role=menubar], [role=tablist], aside";
 
-  // SaaS-app hostnames where blanket form detection mostly false-positives. For
-  // these we still run vendor-specific detection (Marketo/HubSpot/Pardot by
-  // form-id and iframe URL), but skip generic <form> + react-custom matching.
-  const SAAS_HOST_RE = /^(app|mail|admin|console|dashboard|portal|my|inbox|cabinet|secure|account|accounts|workspace|teams)\.|(^|\.)(linkedin|x|twitter|facebook|instagram|youtube|reddit|github|gitlab|bitbucket|notion|figma|slack|miro|airtable|asana|monday|trello|jira|atlassian|salesforce|hubspot|gong|outreach|salesloft|zoom|intercom|zendesk|stripe|loom|coda|clickup|linear|height|fellow|amplitude|mixpanel|segment|posthog|plausible|clearbit|apollo|zoominfo)\.[a-z.]+$/i;
+  // Pages classified as SaaS apps (vs. marketing/lead-gen pages). We try to do
+  // this with content signals so we don't have to maintain a hostname list:
+  //
+  //   - hostname starts with app/admin/console/etc.
+  //   - URL path is a clear app section (/dashboard, /workflows, /settings, ...)
+  //   - DOM has rich-text editors or signed-in UI
+  //   - page has no og:title or meta description (marketing pages always set these
+  //     for SEO + social sharing; apps usually don't)
+  //
+  // Any single signal is enough to skip a page. This catches pretty much every
+  // SaaS app without needing per-domain overrides.
+  const APP_HOST_PREFIX_RE = /^(app|admin|console|dashboard|portal|my|inbox|secure|account|accounts|workspace|teams|panel|cms|client|cabinet|backstage|internal)\./i;
+  const APP_PATH_RE = /^\/(dashboard|admin|app|console|workspace|portal|inbox|messages|settings|profile|account|projects?|workflows?|teams?|chat|files?|notes?|tickets?|orders?|reports?|analytics)(\/|$)/i;
 
   function looksLikeMarketingPage() {
-    const host = location.hostname.toLowerCase();
-    // Local testing always allowed.
+    const host = (location.hostname || "").toLowerCase();
     if (!host || host === "localhost" || /^(127\.|192\.168\.|10\.)/.test(host) || host.endsWith(".local")) return true;
-    if (SAAS_HOST_RE.test(host)) return false;
+
+    if (APP_HOST_PREFIX_RE.test(host)) return false;
+    if (APP_PATH_RE.test((location.pathname || "").toLowerCase())) return false;
+
     if (document.querySelectorAll('[contenteditable="true"]').length > 2) return false;
-    const hasAuthUI = document.querySelector('[aria-label*="profile" i], [aria-label*="sign out" i], [aria-label*="log out" i]');
-    if (hasAuthUI) return false;
+    if (document.querySelector('[aria-label*="profile" i], [aria-label*="sign out" i], [aria-label*="log out" i], [data-testid*="user-menu" i]')) return false;
+
+    const hasMarketingMeta = !!(
+      document.querySelector('meta[property="og:title"]') ||
+      document.querySelector('meta[property="og:description"]') ||
+      document.querySelector('meta[name="description"]')
+    );
+    if (!hasMarketingMeta) return false;
+
     return true;
   }
+  ns.looksLikeMarketingPage = looksLikeMarketingPage;
 
   function resolveLabel(input) {
     if (input.id) {

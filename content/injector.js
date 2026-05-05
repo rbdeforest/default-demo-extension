@@ -8,14 +8,12 @@
   const EMAIL_KEY_RE = /e[-_]?mail/i;
 
   // Known marketing-automation endpoints. Block by URL even if body shape is ambiguous.
-  // Same SaaS-app hostname list the form-detector uses. The injector lives in
-  // main world so we can't share the constant — keep these in sync.
-  const SAAS_HOST_RE = /^(app|mail|admin|console|dashboard|portal|my|inbox|cabinet|secure|account|accounts|workspace|teams)\.|(^|\.)(linkedin|x|twitter|facebook|instagram|youtube|reddit|github|gitlab|bitbucket|notion|figma|slack|miro|airtable|asana|monday|trello|jira|atlassian|salesforce|hubspot|gong|outreach|salesloft|zoom|intercom|zendesk|stripe|loom|coda|clickup|linear|height|fellow|amplitude|mixpanel|segment|posthog|plausible|clearbit|apollo|zoominfo)\.[a-z.]+$/i;
-  function isSaasApp() {
-    const host = (location.hostname || "").toLowerCase();
-    if (!host || host === "localhost" || /^(127\.|192\.168\.|10\.)/.test(host) || host.endsWith(".local")) return false;
-    return SAAS_HOST_RE.test(host);
-  }
+  // Whether to suppress all interception. Set by the isolated-world content
+  // script via custom events when it classifies the page as a SaaS app
+  // (single source of truth — same heuristic as form-detector.js).
+  let injectorDisabled = false;
+  window.addEventListener("default-demo:disable-injector", () => { injectorDisabled = true; });
+  window.addEventListener("default-demo:enable-injector", () => { injectorDisabled = false; });
 
   const MAS_URL_RE = new RegExp(
     [
@@ -140,7 +138,7 @@
   // ---- fetch ----
   const origFetch = window.fetch;
   window.fetch = function (input, init) {
-    if (!INTERCEPT_ENABLED || isSaasApp()) return origFetch.apply(this, arguments);
+    if (!INTERCEPT_ENABLED || injectorDisabled) return origFetch.apply(this, arguments);
     try {
       let url = "";
       let method = "GET";
@@ -194,7 +192,7 @@
   };
 
   XMLHttpRequest.prototype.send = function (body) {
-    if (!INTERCEPT_ENABLED || isSaasApp()) return origSend.apply(this, arguments);
+    if (!INTERCEPT_ENABLED || injectorDisabled) return origSend.apply(this, arguments);
     try {
       const method = this.__ddMethod || "GET";
       const ct = (this.__ddHeaders && this.__ddHeaders["content-type"]) || "";
