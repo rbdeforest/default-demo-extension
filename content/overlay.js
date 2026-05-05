@@ -24,13 +24,13 @@
   function ensureMounted() {
     if (host && document.documentElement.contains(host)) return;
 
-    host = document.createElement("div");
+    // <dialog> + showModal() is the most reliable way to enter the browser's
+    // top layer (above any z-index, above any other modal). Yes, it makes the
+    // rest of the page inert while open — the AE has to close our overlay to
+    // get back to the prospect's page, which is fine for a demo trace.
+    host = document.createElement("dialog");
     host.id = OVERLAY_HOST_ID;
-    // popover="manual" promotes the host into the browser's top layer so it
-    // sits above any <dialog showModal()>-style modals on the prospect page.
-    try { host.setAttribute("popover", "manual"); } catch (e) {}
     host.style.cssText = [
-      "all: initial",
       "position: fixed",
       "top: 0", "right: 0", "bottom: 0", "left: auto",
       "width: 0", "height: 100vh",
@@ -38,10 +38,19 @@
       "margin: 0", "padding: 0", "border: 0",
       "background: transparent",
       "overflow: visible",
-      "z-index: 2147483647",
-      "pointer-events: none"
+      "color: inherit",
+      "pointer-events: none",
+      "z-index: 2147483647"
     ].join("; ") + ";";
     document.documentElement.appendChild(host);
+
+    // Disable the default <dialog> backdrop dim so we don't grey out the page.
+    if (!document.getElementById("default-demo-backdrop-fix")) {
+      const fix = document.createElement("style");
+      fix.id = "default-demo-backdrop-fix";
+      fix.textContent = `#${OVERLAY_HOST_ID}::backdrop { background: transparent; }`;
+      document.head.appendChild(fix);
+    }
 
     shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = TEMPLATE;
@@ -272,13 +281,11 @@
 
   function ensureTopLayer() {
     if (!host) return;
-    // Top-layer is LIFO. If the page promoted a modal after we mounted, we end
-    // up below it. Re-promote on every open so we're always the most recent.
+    // Top-layer is LIFO. Close + re-open the dialog so we're always the most
+    // recent entry, above any modal the prospect page may have opened.
     try {
-      if (typeof host.matches === "function" && host.matches(":popover-open")) {
-        host.hidePopover();
-      }
-      if (typeof host.showPopover === "function") host.showPopover();
+      if (host.open) host.close();
+      if (typeof host.showModal === "function") host.showModal();
     } catch (e) {}
   }
 
@@ -316,11 +323,7 @@
     setTimeout(() => {
       host.style.width = "0";
       host.style.pointerEvents = "none";
-      try {
-        if (typeof host.hidePopover === "function" && host.matches(":popover-open")) {
-          host.hidePopover();
-        }
-      } catch (e) {}
+      try { if (host.open) host.close(); } catch (e) {}
     }, 240);
   }
 
