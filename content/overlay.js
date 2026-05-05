@@ -42,7 +42,6 @@
       "pointer-events: none"
     ].join("; ") + ";";
     document.documentElement.appendChild(host);
-    try { host.showPopover && host.showPopover(); } catch (e) {}
 
     shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = TEMPLATE;
@@ -271,10 +270,23 @@
     };
   }
 
+  function ensureTopLayer() {
+    if (!host) return;
+    // Top-layer is LIFO. If the page promoted a modal after we mounted, we end
+    // up below it. Re-promote on every open so we're always the most recent.
+    try {
+      if (typeof host.matches === "function" && host.matches(":popover-open")) {
+        host.hidePopover();
+      }
+      if (typeof host.showPopover === "function") host.showPopover();
+    } catch (e) {}
+  }
+
   function open(opts = {}) {
     if (window !== window.top) return;
     if (!opts.force && Date.now() - lastUserCloseAt < 5000) return;
     ensureMounted();
+    ensureTopLayer();
 
     if (opts.mode === "sandbox") {
       const defaults = sandboxDefaults();
@@ -304,6 +316,11 @@
     setTimeout(() => {
       host.style.width = "0";
       host.style.pointerEvents = "none";
+      try {
+        if (typeof host.hidePopover === "function" && host.matches(":popover-open")) {
+          host.hidePopover();
+        }
+      } catch (e) {}
     }, 240);
   }
 
