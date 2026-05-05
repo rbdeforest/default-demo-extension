@@ -7,7 +7,15 @@
   const MARKER_CLASS = "default-demo-marker";
   const markers = new WeakMap();
 
-  function ensureMarker(formEl) {
+  const VENDOR_BADGE_NAME = {
+    html: "HTML form",
+    hubspot: "HubSpot form",
+    marketo: "Marketo form",
+    pardot: "Pardot form",
+    "react-custom": "Custom form"
+  };
+
+  function ensureMarker(formEl, vendor) {
     if (markers.has(formEl)) return markers.get(formEl);
     const wrapper = document.createElement("div");
     wrapper.className = MARKER_CLASS;
@@ -20,6 +28,7 @@
       transition: opacity 200ms ease;
     `;
     const badge = document.createElement("div");
+    badge.dataset.role = "default-demo-badge";
     badge.style.cssText = `
       position: absolute; top: -22px; left: -2px;
       background: ${BRAND.purple}; color: ${BRAND.white};
@@ -28,7 +37,8 @@
       padding: 4px 10px; border-radius: 4px 4px 0 0;
       pointer-events: none; white-space: nowrap; text-transform: uppercase;
     `;
-    badge.textContent = "⚡ Default Demo · intercepted";
+    const vendorName = VENDOR_BADGE_NAME[vendor] || "Form";
+    badge.textContent = `⚡ Default Demo · ${vendorName}`;
     wrapper.appendChild(badge);
     document.body.appendChild(wrapper);
     markers.set(formEl, wrapper);
@@ -50,8 +60,8 @@
     marker.style.height = `${r.height + MARKER_PAD * 2}px`;
   }
 
-  function attachMarker(formEl) {
-    const marker = ensureMarker(formEl);
+  function attachMarker(formEl, vendor) {
+    const marker = ensureMarker(formEl, vendor);
     positionMarker(formEl, marker);
     if (!ns.overlayVisible) marker.style.display = "none";
     const reposition = () => positionMarker(formEl, marker);
@@ -97,7 +107,7 @@
     const form = detected.element;
     if (!form || form.dataset.defaultDemoAttached === "1") return () => {};
     form.dataset.defaultDemoAttached = "1";
-    const removeMarker = attachMarker(form);
+    const removeMarker = attachMarker(form, detected.vendor);
 
     const submitHandler = (event) => {
       if (!ns.INTERCEPT_ENABLED || recentlyFired()) return;
@@ -139,7 +149,7 @@
     if (!container || !trigger) return () => {};
     if (container.dataset.defaultDemoAttached === "1") return () => {};
     container.dataset.defaultDemoAttached = "1";
-    const removeMarker = attachMarker(container);
+    const removeMarker = attachMarker(container, detected.vendor);
 
     const handler = (event) => {
       if (!ns.INTERCEPT_ENABLED || recentlyFired()) return;
@@ -161,7 +171,7 @@
     const form = detected.element;
     if (!form || form.dataset.defaultDemoAttached === "1") return () => {};
     form.dataset.defaultDemoAttached = "1";
-    const removeMarker = attachMarker(form);
+    const removeMarker = attachMarker(form, detected.vendor);
 
     // Backup capture-phase click handler. The real interception is in the injector
     // (MktoForms2 onSubmit returning false + URL-pattern network block).
@@ -189,7 +199,7 @@
     const iframe = detected.element;
     if (!iframe || iframe.dataset.defaultDemoAttached === "1") return () => {};
     iframe.dataset.defaultDemoAttached = "1";
-    const removeMarker = attachMarker(iframe);
+    const removeMarker = attachMarker(iframe, detected.vendor);
     return () => {
       delete iframe.dataset.defaultDemoAttached;
       removeMarker();
