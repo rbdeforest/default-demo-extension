@@ -7,17 +7,42 @@
   let detectedForms = [];
   const detachByForm = new WeakMap();
   let autoOpenOverlay = true;
+  let extensionAlive = true;
+  let observer = null;
 
-  if (chrome.storage?.sync) {
-    chrome.storage.sync.get({ autoOpenOverlay: true }, (s) => {
-      autoOpenOverlay = !!s.autoOpenOverlay;
-    });
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "sync" && "autoOpenOverlay" in changes) {
-        autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
-      }
-    });
+  function isExtensionAlive() {
+    try { return !!chrome.runtime?.id; } catch (e) { return false; }
   }
+
+  function safeSend(message) {
+    if (!extensionAlive) return;
+    try {
+      const p = chrome.runtime.sendMessage(message);
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (err) {
+      if (err?.message?.includes("Extension context invalidated")) {
+        teardown();
+      }
+    }
+  }
+
+  function teardown() {
+    extensionAlive = false;
+    try { observer?.disconnect(); } catch (e) {}
+  }
+
+  try {
+    if (chrome.storage?.sync) {
+      chrome.storage.sync.get({ autoOpenOverlay: true }, (s) => {
+        autoOpenOverlay = !!s.autoOpenOverlay;
+      });
+      chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === "sync" && "autoOpenOverlay" in changes) {
+          autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
+        }
+      });
+    }
+  } catch (e) { teardown(); }
 
   function onSubmitIntercepted({ formData, vendor, source }) {
     if (!autoOpenOverlay) {
@@ -31,12 +56,10 @@
         sourceUrl: location.hostname
       });
     } else {
-      chrome.runtime
-        .sendMessage({
-          type: MessageTypes.FORM_INTERCEPTED,
-          payload: { formData, vendor, sourceUrl: location.hostname }
-        })
-        .catch(() => {});
+      safeSend({
+        type: MessageTypes.FORM_INTERCEPTED,
+        payload: { formData, vendor, sourceUrl: location.hostname }
+      });
     }
   }
 
@@ -50,28 +73,29 @@
   }
 
   function runDetection() {
+    if (!extensionAlive) return;
     detectedForms = ns.detectForms();
     const summary = ns.summarizeDetected(detectedForms);
-    chrome.runtime
-      .sendMessage({
-        type: MessageTypes.FORMS_DETECTED,
-        payload: { url: location.href, forms: summary }
-      })
-      .catch(() => {});
+    safeSend({
+      type: MessageTypes.FORMS_DETECTED,
+      payload: { url: location.href, forms: summary }
+    });
     attachInterceptors();
   }
 
   runDetection();
 
   let mutationTimer = null;
-  const observer = new MutationObserver(() => {
-    if (mutationTimer) return;
+  observer = new MutationObserver(() => {
+    if (mutationTimer || !extensionAlive) return;
     mutationTimer = setTimeout(() => {
       mutationTimer = null;
       runDetection();
     }, 500);
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  try {
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  } catch (e) { teardown(); }
 
   // Mark user intent on any click/submit so the main-world injector knows when to
   // intercept network calls. Without this gate, SaaS apps' background API calls

@@ -169,7 +169,25 @@
 
   const SKIP_ANCESTOR_SELECTOR = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo], [role=dialog], [role=menu], [role=menubar], [role=tablist], aside";
 
+  // SaaS-app hostnames where react-custom heuristic would mostly false-positive.
+  const SAAS_HOST_RE = /^(app|mail|admin|console|dashboard|portal|my|inbox|cabinet|secure|account|accounts|workspace|teams)\.|(^|\.)(linkedin|x|twitter|facebook|instagram|youtube|reddit|github|gitlab|bitbucket|notion|figma|slack|figjam|miro|airtable|asana|monday|trello|jira|atlassian|salesforce|hubspot|gong|outreach|salesloft|zoom|intercom|zendesk|stripe|drive\.google|mail\.google|calendar\.google|docs\.google|sheets\.google|keep\.google|outlook\.live|teams\.microsoft|sharepoint|loom|coda|clickup|linear|height|fellow|amplitude|mixpanel|segment|posthog|plausible|clearbit|apollo|zoominfo)\.[a-z.]+$/i;
+
+  function looksLikeMarketingPage() {
+    const host = location.hostname.toLowerCase();
+    if (SAAS_HOST_RE.test(host)) return false;
+    // Many contenteditable elements signal a rich-text app, not a marketing page.
+    if (document.querySelectorAll('[contenteditable="true"]').length > 2) return false;
+    // og:title is a strong marketing-page indicator.
+    if (document.querySelector('meta[property^="og:"]')) return true;
+    // Fallback: short doc title + no auth UI hints.
+    const hasAuthUI = document.querySelector('[aria-label*="profile" i], [aria-label*="sign out" i], [aria-label*="log out" i]');
+    if (hasAuthUI) return false;
+    return true;
+  }
+
   function detectReactCustom(root, alreadyClaimed) {
+    if (!looksLikeMarketingPage()) return []; // skip on web apps
+
     const candidates = Array.from(root.querySelectorAll('button, [role="button"], input[type=submit], input[type=button]'));
     const seenContainers = new Set();
     const results = [];
@@ -177,30 +195,31 @@
     for (const btn of candidates) {
       const text = buttonText(btn);
       if (!text || !TRIGGER_TEXT_RE.test(text)) continue;
-      if (btn.closest("form")) continue;            // real form — handled by html detector
-      if (btn.closest(SKIP_ANCESTOR_SELECTOR)) continue; // chrome / app shell
+      if (btn.closest("form")) continue;
+      if (btn.closest(SKIP_ANCESTOR_SELECTOR)) continue;
 
       let node = btn.parentElement;
       let chosenContainer = null;
       let chosenInputs = [];
       for (let depth = 0; depth < 3 && node && node !== document.body; depth++) {
-        // Skip containers that are basically the whole page.
         const r = node.getBoundingClientRect();
-        const tooBig = r.width > window.innerWidth * 0.7 && r.height > window.innerHeight * 0.6;
+        const tooBig = r.width > window.innerWidth * 0.6 && r.height > window.innerHeight * 0.6;
         if (tooBig) break;
+        // Containers with rich-text editors are app UI, not marketing forms.
+        if (node.querySelector('[contenteditable="true"]')) {
+          node = node.parentElement;
+          continue;
+        }
 
         const inputs = Array.from(node.querySelectorAll(FIELD_SELECTOR))
           .filter((el) => !SKIP_INPUT_TYPES.has((el.getAttribute("type") || "").toLowerCase()));
+        const hasRealEmailInput = inputs.some((el) => (el.getAttribute("type") || "").toLowerCase() === "email");
 
-        // 2-7 inputs is a marketing-form sweet spot. >7 is admin UI noise.
-        if (inputs.length >= 2 && inputs.length <= 7) {
+        if (inputs.length >= 2 && inputs.length <= 7 && hasRealEmailInput) {
           const fields = inputs.map(extractField).filter(Boolean);
-          const hasEmail = fields.some(looksLikeEmailField);
-          if (hasEmail) {
-            chosenContainer = node;
-            chosenInputs = fields;
-            break;
-          }
+          chosenContainer = node;
+          chosenInputs = fields;
+          break;
         }
         node = node.parentElement;
       }
