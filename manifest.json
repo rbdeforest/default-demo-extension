@@ -24,6 +24,7 @@
         "content/form-detector.js",
         "content/form-interceptor.js",
         "content/overlay.js",
+        "content/picker.js",
         "content/content.js"
       ],
       "run_at": "document_idle",

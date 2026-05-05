@@ -12,7 +12,8 @@
     hubspot: "HubSpot form",
     marketo: "Marketo form",
     pardot: "Pardot form",
-    "react-custom": "Custom form"
+    "react-custom": "Custom form",
+    manual: "Manual picks"
   };
 
   function ensureMarker(formEl, vendor) {
@@ -206,13 +207,27 @@
     };
   }
 
+  function attachManualInterceptor(detected, onSubmit) {
+    // For manually picked fields the container is just a wrapper — there's no
+    // form element. Show the outline; submit-blocking happens via the network
+    // injector + user-intent gate if anything actually fires.
+    const container = detected.element;
+    if (!container || container.dataset.defaultDemoAttached === "1") return () => {};
+    container.dataset.defaultDemoAttached = "1";
+    const removeMarker = attachMarker(container, "manual");
+    return () => {
+      delete container.dataset.defaultDemoAttached;
+      removeMarker();
+    };
+  }
+
   function attachInterceptor(detected, onSubmit) {
-    // Top-frame vendor iframe — show the outline; the iframe's own content script intercepts inside.
     if (detected.element instanceof HTMLIFrameElement) {
       return attachIframeOutlineOnly(detected);
     }
     if (detected.vendor === "react-custom") return attachReactCustomInterceptor(detected, onSubmit);
     if (detected.vendor === "marketo") return attachMarketoInterceptor(detected, onSubmit);
+    if (detected.vendor === "manual") return attachManualInterceptor(detected, onSubmit);
     // html / hubspot inner / pardot inner all share the html capture-phase pattern.
     return attachHtmlInterceptor(detected, onSubmit);
   }

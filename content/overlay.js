@@ -79,6 +79,7 @@
     "react-custom": "Custom React Form",
     network: "Network Capture",
     sandbox: "Sandbox",
+    manual: "Manual Picks",
     form: "Form"
   };
 

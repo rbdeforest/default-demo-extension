@@ -157,6 +157,17 @@
     return { formData, vendor: detected.vendor };
   }
 
+  // Saved-picks lookup. When set, form-detector returns a "manual" detected form.
+  ns.savedPicks = [];
+  async function refreshSavedPicks() {
+    if (!ns.picker?.loadSavedPicks) return;
+    try {
+      const saved = await ns.picker.loadSavedPicks();
+      ns.savedPicks = ns.picker.readSavedPicksFromDOM(saved);
+    } catch (e) { ns.savedPicks = []; }
+  }
+  refreshSavedPicks().then(() => runDetection());
+
   function onRuntimeMessage(message, sender, sendResponse) {
     if (!extensionAlive) return;
     if (message?.type === MessageTypes.GET_DETECTED_FORMS) {
@@ -197,6 +208,25 @@
     if (message?.type === MessageTypes.CLOSE_OVERLAY) {
       if (window === window.top) ns.overlay.close();
       sendResponse({ ok: true });
+      return true;
+    }
+
+    if (message?.type === MessageTypes.ENTER_PICKER_MODE) {
+      if (window !== window.top) return;
+      ns.picker?.enter().then(() => refreshSavedPicks().then(runDetection));
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    if (message?.type === MessageTypes.CLEAR_SAVED_PICKS) {
+      if (window !== window.top) return;
+      try {
+        chrome.storage.local.remove(ns.picker?.storageKey, () => {
+          ns.savedPicks = [];
+          runDetection();
+          sendResponse({ ok: true });
+        });
+      } catch (e) { sendResponse({ ok: false }); }
       return true;
     }
 

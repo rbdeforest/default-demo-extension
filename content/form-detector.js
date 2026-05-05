@@ -243,12 +243,38 @@
     return results;
   }
 
+  function detectManualPicks() {
+    const ns = window.DefaultDemo;
+    const saved = ns?.savedPicks;
+    if (!saved || !saved.length) return [];
+    const fields = saved.map((p) => ({
+      name: p.tag,
+      type: p.element?.getAttribute?.("type") || "text",
+      label: p.label || p.tag,
+      required: false,
+      element: p.element
+    }));
+    // Find a sensible container that bounds all picked elements so the marker can outline it.
+    let container = saved[0].element.parentElement || document.body;
+    for (const p of saved) {
+      while (container && !container.contains(p.element)) container = container.parentElement;
+    }
+    if (!container) container = document.body;
+    return [{
+      vendor: "manual",
+      element: container,
+      iframe: null,
+      trigger: null,
+      fields,
+      confidence: 0.99
+    }];
+  }
+
   function detectForms() {
     const marketo = detectMarketo(document);
     const hubspotInner = detectHubspotInnerForms(document);
     let html = detectHtmlForms(document);
 
-    // Inside a vendor iframe — relabel html forms.
     const innerVendor = inFrameVendor();
     if (innerVendor) {
       html = html.map((d) => ({ ...d, vendor: innerVendor, confidence: 0.9 }));
@@ -261,8 +287,9 @@
 
     const reactCustom = detectReactCustom(document, claimed);
     const vendoredIframes = detectVendoredIframes(document);
+    const manual = detectManualPicks();
 
-    const all = [...marketo, ...hubspotInner, ...html, ...reactCustom, ...vendoredIframes];
+    const all = [...manual, ...marketo, ...hubspotInner, ...html, ...reactCustom, ...vendoredIframes];
     return all.sort((a, b) => b.confidence - a.confidence);
   }
 

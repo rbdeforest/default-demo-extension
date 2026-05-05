@@ -2,6 +2,8 @@ const statusEl = document.getElementById("status");
 const formsEl = document.getElementById("forms");
 const openBtn = document.getElementById("open-trace");
 const sandboxBtn = document.getElementById("run-sandbox");
+const pickBtn = document.getElementById("pick-fields");
+const clearPicksBtn = document.getElementById("clear-picks");
 const workflowPicker = document.getElementById("workflow-picker");
 const autoOpenToggle = document.getElementById("auto-open-toggle");
 
@@ -122,6 +124,27 @@ async function openOverlay({ formIndex = selectedFormIndex } = {}) {
 }
 
 openBtn.addEventListener("click", () => openOverlay());
+
+pickBtn.addEventListener("click", async () => {
+  const tab = await activeTab();
+  if (!tab?.id) return;
+  chrome.tabs.sendMessage(tab.id, { type: "enter-picker-mode" }, { frameId: 0 }, () => {
+    if (chrome.runtime.lastError) {
+      statusEl.textContent = chrome.runtime.lastError.message;
+      return;
+    }
+    window.close();
+  });
+});
+
+clearPicksBtn.addEventListener("click", async () => {
+  const tab = await activeTab();
+  if (!tab?.id) return;
+  chrome.tabs.sendMessage(tab.id, { type: "clear-saved-picks" }, { frameId: 0 }, () => {
+    statusEl.textContent = "saved picks cleared";
+    fetchForms().then(render);
+  });
+});
 
 sandboxBtn.addEventListener("click", async () => {
   const tab = await activeTab();

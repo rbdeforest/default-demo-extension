@@ -10,7 +10,9 @@
     CLOSE_OVERLAY: "close-overlay",
     RUN_WORKFLOW: "run-workflow",
     TRACE_EVENT: "trace-event",
-    GET_DETECTED_FORMS: "get-detected-forms"
+    GET_DETECTED_FORMS: "get-detected-forms",
+    ENTER_PICKER_MODE: "enter-picker-mode",
+    CLEAR_SAVED_PICKS: "clear-saved-picks"
   };
 
   ns.BRAND = {

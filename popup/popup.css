@@ -136,6 +136,18 @@ button.secondary:hover {
   border-color: var(--accent);
 }
 
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+}
+
+button.ghost:hover {
+  color: var(--fg);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 .footer {
   margin-top: 12px;
   padding-top: 12px;
