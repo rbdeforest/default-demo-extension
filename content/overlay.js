@@ -647,10 +647,10 @@
       <div class="actions">
         <button class="run-btn" data-state="idle">Run</button>
         <select class="workflow-select"></select>
-        <label class="overlay-toggle" title="Hide on this page (still blocks form)">
+        <label class="overlay-toggle" title="Show the marker outline on detected forms">
           <input type="checkbox" class="overlay-toggle-input" checked />
           <span class="overlay-toggle-track"><span class="overlay-toggle-thumb"></span></span>
-          <span class="overlay-toggle-label">Show</span>
+          <span class="overlay-toggle-label">Outline</span>
         </label>
       </div>
     </div>

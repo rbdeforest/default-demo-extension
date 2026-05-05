@@ -32,13 +32,10 @@
   }
 
   function applyOverlayVisibility(visible) {
-    autoOpenOverlay = !!visible;
+    // Toggle controls the on-form marker outline only. The slide-in trace panel
+    // always opens on form detection / submit regardless of this setting.
     ns.overlayVisible = !!visible;
-    // Markers always stay on so the AE knows interception is active. Toggle
-    // only controls the slide-in trace panel.
-    if (!visible && window === window.top && ns.overlay?.isOpen?.()) {
-      ns.overlay.close("auto");
-    }
+    if (typeof ns.setMarkersVisible === "function") ns.setMarkersVisible(!!visible);
   }
 
   try {
@@ -63,11 +60,7 @@
 
   function onSubmitIntercepted({ formData, vendor, source }) {
     const normalized = normalizeFormData(formData);
-    console.log("[Default Demo] intercept fired. autoOpenOverlay =", autoOpenOverlay, "vendor:", vendor, "normalized:", normalized);
-    if (!autoOpenOverlay) {
-      console.log("[Default Demo] form intercepted (overlay disabled)", { vendor, formData: normalized });
-      return;
-    }
+    console.log("[Default Demo] intercept fired. vendor:", vendor, "normalized:", normalized);
     if (window === window.top) {
       ns.overlay.open({
         formData: normalized,
@@ -97,7 +90,6 @@
 
   function maybeAutoOpen() {
     if (hasAutoOpened) return;
-    if (!autoOpenOverlay) return;
     if (window !== window.top) return;
     if (!detectedForms || detectedForms.length === 0) return;
     if (!ns.overlay?.open) return;
@@ -278,10 +270,6 @@
 
     // Forwarded from sub-frames via background.
     if (message?.type === MessageTypes.FORM_INTERCEPTED && window === window.top) {
-      if (!autoOpenOverlay) {
-        console.log("[Default Demo] cross-frame intercept (overlay disabled)", message.payload);
-        return;
-      }
       ns.overlay.open({
         formData: normalizeFormData(message.payload?.formData ?? {}),
         vendor: message.payload?.vendor || "form",

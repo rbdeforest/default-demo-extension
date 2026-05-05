@@ -66,6 +66,7 @@
   function attachMarker(formEl, vendor) {
     const marker = ensureMarker(formEl, vendor);
     positionMarker(formEl, marker);
+    if (!ns.overlayVisible) marker.style.display = "none";
     const reposition = () => positionMarker(formEl, marker);
     window.addEventListener("scroll", reposition, { passive: true });
     window.addEventListener("resize", reposition);
