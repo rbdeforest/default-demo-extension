@@ -141,16 +141,7 @@
     }
 
     const techEl = shadow.querySelector(".source-tech");
-    const ctx = ns.getProspectContext ? ns.getProspectContext() : null;
-    if (techEl) {
-      const tech = ctx?.detectedTech || [];
-      if (tech.length) {
-        techEl.textContent = "Detected: " + tech.join(", ");
-        techEl.style.display = "block";
-      } else {
-        techEl.style.display = "none";
-      }
-    }
+    if (techEl) techEl.style.display = "none";
 
     formFieldsEl.innerHTML = "";
     const entries = Object.entries(currentFormData);
@@ -179,6 +170,19 @@
 
   function clearTrace() {
     traceListEl.innerHTML = "";
+    setSummary(null);
+  }
+
+  function setSummary(text) {
+    const el = shadow?.querySelector(".workflow-summary");
+    if (!el) return;
+    if (text) {
+      el.textContent = text;
+      el.hidden = false;
+    } else {
+      el.textContent = "";
+      el.hidden = true;
+    }
   }
 
   function showCalendar(url) {
@@ -275,14 +279,23 @@
     let aborted = false;
     currentRun = { abort: () => { aborted = true; }, generator };
 
+    const startedAt = Date.now();
+    let calendarShownAt = null;
+
     try {
       for await (const event of generator) {
         if (aborted) break;
         pushTraceEvent(event);
+        if (event.step === "calendar.display" && event.status === "success" && calendarShownAt === null) {
+          calendarShownAt = Date.now();
+        }
       }
       if (!aborted) {
+        const totalMs = Date.now() - startedAt;
+        const calendarMs = calendarShownAt ? calendarShownAt - startedAt : null;
+        const calendarLabel = calendarMs != null ? `${calendarMs}ms` : "n/a";
+        setSummary(`Workflow completed: time to calendar ${calendarLabel} and time to complete workflow ${totalMs}ms`);
         showToast(`Form intercepted by Default Demo — no data was sent to ${location.hostname}`);
-        // Reveal the live scheduler — what the lead would see right now.
         showCalendar(CALENDAR_URL);
       }
     } catch (err) {
@@ -512,6 +525,17 @@
         flex-direction: column;
         min-height: 200px;
       }
+      .workflow-summary {
+        font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+        font-size: 11px;
+        color: #34d399;
+        background: rgba(52, 211, 153, 0.08);
+        border: 1px solid rgba(52, 211, 153, 0.3);
+        border-radius: 4px;
+        padding: 7px 10px;
+        margin-bottom: 8px;
+        line-height: 1.5;
+      }
       .trace-list {
         flex: 1;
         overflow-y: auto;
@@ -709,6 +733,7 @@
 
       <div class="section trace-section">
         <div class="section-label">Workflow trace</div>
+        <div class="workflow-summary" hidden></div>
         <div class="trace-list"></div>
       </div>
 
