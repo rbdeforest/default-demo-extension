@@ -206,8 +206,12 @@
     schedulerShadow.innerHTML = `
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        /* The side panel always sits in the right 480px while the scheduler is
+           open. Leave that area clear so the AE can still read the trace + summary. */
         .backdrop {
-          position: fixed; inset: 0;
+          position: fixed;
+          top: 0; left: 0; bottom: 0;
+          right: 480px;
           background: rgba(0, 0, 0, 0.55);
           opacity: 0;
           transition: opacity 200ms ease;
@@ -216,9 +220,10 @@
         .backdrop.open { opacity: 1; }
         .modal {
           position: fixed;
-          top: 50%; left: 50%;
+          top: 50%;
+          left: calc((100vw - 480px) / 2);
           transform: translate(-50%, -45%) scale(0.96);
-          width: min(720px, 92vw);
+          width: min(640px, calc(100vw - 540px));
           height: min(640px, 88vh);
           background: ${BRAND.white};
           border-radius: 12px;
@@ -292,6 +297,8 @@
     requestAnimationFrame(() => {
       schedulerShadow.querySelector(".backdrop").classList.add("open");
       schedulerShadow.querySelector(".modal").classList.add("open");
+      // Re-promote the side panel so it paints above the scheduler (top-layer is LIFO).
+      ensureTopLayer();
     });
   }
 
