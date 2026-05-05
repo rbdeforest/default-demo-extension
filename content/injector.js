@@ -113,6 +113,18 @@
     } catch (e) {}
   }
 
+  // User-intent gate. The isolated-world content script dispatches this whenever
+  // the user clicks something that looks like a form trigger (or a real submit).
+  // Without recent intent we let network calls pass through untouched — otherwise
+  // background API calls on SaaS apps would constantly fire the overlay.
+  let lastIntentAt = 0;
+  window.addEventListener("default-demo:user-intent", () => {
+    lastIntentAt = Date.now();
+  });
+  function hasRecentIntent() {
+    return Date.now() - lastIntentAt < 2500;
+  }
+
   // ---- fetch ----
   const origFetch = window.fetch;
   window.fetch = function (input, init) {
@@ -138,7 +150,7 @@
 
       const masMatch = isMasEndpoint(url);
       const looksLikeForm = (method === "POST" || method === "PUT") && bodyContainsEmail(body, contentType);
-      if (masMatch || looksLikeForm) {
+      if ((masMatch || looksLikeForm) && hasRecentIntent()) {
         dispatchIntercept({
           source: masMatch ? "mas" : "fetch",
           url,
@@ -177,7 +189,7 @@
       const url = this.__ddUrl;
       const masMatch = isMasEndpoint(url);
       const looksLikeForm = (method === "POST" || method === "PUT") && bodyContainsEmail(body, ct);
-      if (masMatch || looksLikeForm) {
+      if ((masMatch || looksLikeForm) && hasRecentIntent()) {
         dispatchIntercept({
           source: masMatch ? "mas-xhr" : "xhr",
           url,

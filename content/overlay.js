@@ -17,6 +17,7 @@
   let currentFormData = {};
   let currentWorkflowId = "placeholder";
   let currentRun = null; // { abort: fn, generator }
+  let lastUserCloseAt = 0; // remember explicit close so stray intercepts can't reopen
 
   const OVERLAY_HOST_ID = "default-demo-overlay-root";
 
@@ -225,7 +226,10 @@
   }
 
   function open(opts = {}) {
-    if (window !== window.top) return; // overlay only mounts in top frame
+    if (window !== window.top) return;
+    // Suppress reopens for ~5s after an explicit user close, unless this open is
+    // being triggered by a popup action (which sets force).
+    if (!opts.force && Date.now() - lastUserCloseAt < 5000) return;
     ensureMounted();
     if (opts.formData) setFormData(opts.formData, opts.vendor, opts.sourceUrl);
     else if (Object.keys(currentFormData).length === 0) setFormData({}, opts.vendor, opts.sourceUrl);
@@ -240,8 +244,9 @@
     });
   }
 
-  function close() {
+  function close(reason) {
     if (!root) return;
+    if (reason !== "auto") lastUserCloseAt = Date.now();
     root.classList.remove("open");
     cancelRun();
     setTimeout(() => {

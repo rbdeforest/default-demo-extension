@@ -6,7 +6,9 @@
 
   const FIELD_SELECTOR = "input, select, textarea";
   const SKIP_INPUT_TYPES = new Set(["hidden", "submit", "button", "reset", "image", "file"]);
-  const TRIGGER_TEXT_RE = /demo|contact|talk|book|request|schedule|get started|sign up|trial|subscribe/i;
+  // Trigger words for the react-custom heuristic. Kept tight to avoid matching
+  // generic SaaS-app buttons like "Subscribe to notifications" or "Submit ticket".
+  const TRIGGER_TEXT_RE = /\b(get a demo|request demo|book a demo|talk to sales|contact sales|schedule a demo|get started|sign up|start (free )?trial|request access)\b/i;
 
   function resolveLabel(input) {
     if (input.id) {
@@ -165,6 +167,8 @@
     return ((btn.textContent || btn.value || btn.getAttribute("aria-label") || "") + "").trim();
   }
 
+  const SKIP_ANCESTOR_SELECTOR = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo], [role=dialog], [role=menu], [role=menubar], [role=tablist], aside";
+
   function detectReactCustom(root, alreadyClaimed) {
     const candidates = Array.from(root.querySelectorAll('button, [role="button"], input[type=submit], input[type=button]'));
     const seenContainers = new Set();
@@ -173,18 +177,23 @@
     for (const btn of candidates) {
       const text = buttonText(btn);
       if (!text || !TRIGGER_TEXT_RE.test(text)) continue;
+      if (btn.closest("form")) continue;            // real form — handled by html detector
+      if (btn.closest(SKIP_ANCESTOR_SELECTOR)) continue; // chrome / app shell
 
-      // Skip buttons that already live inside a real <form> (handled by html detector).
-      if (btn.closest("form")) continue;
-
-      // Walk up to 5 ancestors and pick the smallest cluster with ≥2 inputs incl. email.
       let node = btn.parentElement;
       let chosenContainer = null;
       let chosenInputs = [];
-      for (let depth = 0; depth < 5 && node && node !== document.body; depth++) {
+      for (let depth = 0; depth < 3 && node && node !== document.body; depth++) {
+        // Skip containers that are basically the whole page.
+        const r = node.getBoundingClientRect();
+        const tooBig = r.width > window.innerWidth * 0.7 && r.height > window.innerHeight * 0.6;
+        if (tooBig) break;
+
         const inputs = Array.from(node.querySelectorAll(FIELD_SELECTOR))
           .filter((el) => !SKIP_INPUT_TYPES.has((el.getAttribute("type") || "").toLowerCase()));
-        if (inputs.length >= 2) {
+
+        // 2-7 inputs is a marketing-form sweet spot. >7 is admin UI noise.
+        if (inputs.length >= 2 && inputs.length <= 7) {
           const fields = inputs.map(extractField).filter(Boolean);
           const hasEmail = fields.some(looksLikeEmailField);
           if (hasEmail) {

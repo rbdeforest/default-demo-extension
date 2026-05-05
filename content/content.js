@@ -58,10 +58,25 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
+  // Mark user intent on any click/submit so the main-world injector knows when to
+  // intercept network calls. Without this gate, SaaS apps' background API calls
+  // (which include emails in payloads) would constantly trigger the overlay.
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest("button, input[type=submit], input[type=button], [role=button], a[href]");
+    if (!button) return;
+    if (ns.markUserIntent) ns.markUserIntent();
+  }, { capture: true });
+  document.addEventListener("submit", () => {
+    if (ns.markUserIntent) ns.markUserIntent();
+  }, { capture: true });
+
   // Listen for the injector's main-world fetch/XHR interception.
   window.addEventListener("default-demo:fetch-intercepted", (event) => {
     if (!ns.INTERCEPT_ENABLED) return;
-    if (ns.interceptorRecentlyFired && ns.interceptorRecentlyFired()) return; // DOM hook already won
+    if (!ns.hasRecentUserIntent || !ns.hasRecentUserIntent()) return; // double-check on the iso-world side
+    if (ns.interceptorRecentlyFired && ns.interceptorRecentlyFired()) return;
     if (ns.markInterceptorFired) ns.markInterceptorFired();
 
     const detail = event.detail || {};
@@ -105,7 +120,8 @@
         formData,
         vendor,
         sourceUrl: location.hostname,
-        workflowId: message.payload?.workflowId
+        workflowId: message.payload?.workflowId,
+        force: true // popup-initiated open should override the user-close cooldown
       });
       sendResponse({ ok: true });
       return true;

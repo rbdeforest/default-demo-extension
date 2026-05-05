@@ -22,6 +22,18 @@
 
   ns.INTERCEPT_ENABLED = true;
 
+  // User-intent tracking — used to gate the network injector so it doesn't fire on
+  // background API calls in SaaS apps. Set whenever the user clicks anything that
+  // looks like a form trigger, or a submit event fires.
+  ns.lastUserIntentAt = 0;
+  ns.markUserIntent = function () {
+    ns.lastUserIntentAt = Date.now();
+    try { window.dispatchEvent(new CustomEvent("default-demo:user-intent")); } catch (e) {}
+  };
+  ns.hasRecentUserIntent = function (windowMs) {
+    return Date.now() - ns.lastUserIntentAt < (windowMs || 2500);
+  };
+
   // Workflow registry — workflow files call registerWorkflow on load.
   ns.workflows = ns.workflows || [];
   ns.registerWorkflow = function (workflow) {
