@@ -16,8 +16,9 @@
   let runBtn = null;
   let titleEl = null;
   let toastEl = null;
-  let calendarSectionEl = null;
-  let calendarIframeEl = null;
+  // Separate floating scheduler modal that pops up over the prospect's page.
+  let schedulerHost = null;
+  let schedulerShadow = null;
   let currentFormData = {};
   let currentWorkflowId = "placeholder";
   let currentRun = null; // { abort: fn, generator }
@@ -62,10 +63,6 @@
     runBtn = shadow.querySelector(".run-btn");
     titleEl = shadow.querySelector(".vendor-pill");
     toastEl = shadow.querySelector(".safety-toast");
-    calendarSectionEl = shadow.querySelector(".calendar-section");
-    calendarIframeEl = shadow.querySelector(".calendar-iframe");
-
-    shadow.querySelector(".calendar-collapse").addEventListener("click", hideCalendar);
 
     populateWorkflowOptions();
 
@@ -185,17 +182,129 @@
     }
   }
 
-  function showCalendar(url) {
-    if (!calendarSectionEl || !calendarIframeEl) return;
-    if (calendarIframeEl.src !== url) calendarIframeEl.src = url;
-    calendarSectionEl.hidden = false;
-    root.classList.add("has-calendar");
+  function ensureSchedulerMounted() {
+    if (schedulerHost && document.documentElement.contains(schedulerHost)) return;
+    schedulerHost = document.createElement("div");
+    schedulerHost.id = "default-demo-scheduler-root";
+    try { schedulerHost.setAttribute("popover", "manual"); } catch (e) {}
+    schedulerHost.style.cssText = [
+      "position: fixed",
+      "top: 0", "left: 0", "right: 0", "bottom: 0",
+      "width: 100vw", "height: 100vh",
+      "max-width: none", "max-height: none",
+      "margin: 0", "padding: 0", "border: 0",
+      "background: transparent",
+      "overflow: hidden",
+      "color: inherit",
+      "display: block",
+      "pointer-events: none",
+      "z-index: 2147483647"
+    ].join("; ") + ";";
+    document.documentElement.appendChild(schedulerHost);
+
+    schedulerShadow = schedulerHost.attachShadow({ mode: "open" });
+    schedulerShadow.innerHTML = `
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .backdrop {
+          position: fixed; inset: 0;
+          background: rgba(0, 0, 0, 0.55);
+          opacity: 0;
+          transition: opacity 200ms ease;
+          pointer-events: auto;
+        }
+        .backdrop.open { opacity: 1; }
+        .modal {
+          position: fixed;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -45%) scale(0.96);
+          width: min(720px, 92vw);
+          height: min(640px, 88vh);
+          background: ${BRAND.white};
+          border-radius: 12px;
+          box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+          opacity: 0;
+          transition: opacity 200ms ease, transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+          pointer-events: auto;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          font-family: "Inter", -apple-system, system-ui, sans-serif;
+        }
+        .modal.open {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        .header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 18px;
+          border-bottom: 1px solid #ececec;
+          font-size: 14px;
+          font-weight: 600;
+          color: #111;
+          flex-shrink: 0;
+        }
+        .header .dot {
+          width: 8px; height: 8px; border-radius: 50%;
+          background: ${BRAND.purple};
+          display: inline-block;
+          margin-right: 8px;
+          vertical-align: middle;
+        }
+        .close-btn {
+          background: transparent; border: none;
+          font-size: 22px; cursor: pointer;
+          color: #888;
+          padding: 0 4px;
+          line-height: 1;
+        }
+        .close-btn:hover { color: #111; }
+        iframe {
+          flex: 1;
+          width: 100%;
+          border: 0;
+          background: ${BRAND.white};
+        }
+      </style>
+      <div class="backdrop"></div>
+      <div class="modal">
+        <div class="header">
+          <span><span class="dot"></span>Schedule a meeting</span>
+          <button class="close-btn" aria-label="Close">×</button>
+        </div>
+        <iframe class="scheduler-iframe" title="Scheduler"></iframe>
+      </div>
+    `;
+
+    schedulerShadow.querySelector(".close-btn").addEventListener("click", hideScheduler);
+    schedulerShadow.querySelector(".backdrop").addEventListener("click", hideScheduler);
   }
 
-  function hideCalendar() {
-    if (!calendarSectionEl) return;
-    calendarSectionEl.hidden = true;
-    root.classList.remove("has-calendar");
+  function showScheduler(url) {
+    ensureSchedulerMounted();
+    const iframe = schedulerShadow.querySelector(".scheduler-iframe");
+    if (iframe.src !== url) iframe.src = url;
+    schedulerHost.style.pointerEvents = "auto";
+    try {
+      if (schedulerHost.matches?.(":popover-open")) schedulerHost.hidePopover();
+    } catch (e) {}
+    try { schedulerHost.showPopover?.(); } catch (e) {}
+    requestAnimationFrame(() => {
+      schedulerShadow.querySelector(".backdrop").classList.add("open");
+      schedulerShadow.querySelector(".modal").classList.add("open");
+    });
+  }
+
+  function hideScheduler() {
+    if (!schedulerShadow || !schedulerHost) return;
+    schedulerShadow.querySelector(".backdrop")?.classList.remove("open");
+    schedulerShadow.querySelector(".modal")?.classList.remove("open");
+    setTimeout(() => {
+      try {
+        if (schedulerHost.matches?.(":popover-open")) schedulerHost.hidePopover();
+      } catch (e) {}
+      schedulerHost.style.pointerEvents = "none";
+    }, 220);
   }
 
   function pushTraceEvent(event) {
@@ -296,7 +405,7 @@
         const calendarLabel = calendarMs != null ? `${calendarMs}ms` : "n/a";
         setSummary(`Workflow completed: time to calendar ${calendarLabel} and time to complete workflow ${totalMs}ms`);
         showToast(`Form intercepted by Default Demo — no data was sent to ${location.hostname}`);
-        showCalendar(CALENDAR_URL);
+        showScheduler(CALENDAR_URL);
       }
     } catch (err) {
       pushTraceEvent({ step: "runner", status: "failed", error: err?.message || String(err) });
@@ -377,7 +486,7 @@
     if (reason !== "auto") lastUserCloseAt = Date.now();
     root.classList.remove("open");
     cancelRun();
-    hideCalendar();
+    hideScheduler();
     setTimeout(() => {
       host.style.pointerEvents = "none";
       try {
@@ -591,50 +700,6 @@
         50% { opacity: 0.4; }
       }
 
-      .calendar-section {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 380px;
-        max-height: 60vh;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        background: ${BRAND.white};
-        animation: cal-slide-up 280ms cubic-bezier(0.16, 1, 0.3, 1);
-        flex-shrink: 0;
-      }
-      .calendar-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 10px 14px;
-        background: ${BRAND.black};
-        color: ${BRAND.white};
-        font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-        font-size: 11px;
-        letter-spacing: 0.05em;
-      }
-      .calendar-collapse {
-        background: transparent;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        color: ${BRAND.white};
-        cursor: pointer;
-        font-size: 12px;
-        padding: 2px 8px;
-        border-radius: 3px;
-      }
-      .calendar-collapse:hover { border-color: ${BRAND.purple}; color: ${BRAND.purple}; }
-      .calendar-iframe {
-        flex: 1;
-        width: 100%;
-        border: none;
-        background: ${BRAND.white};
-      }
-      @keyframes cal-slide-up {
-        from { transform: translateY(20px); opacity: 0; }
-        to   { transform: translateY(0);    opacity: 1; }
-      }
-      /* When calendar is showing, trim the trace area so both fit. */
-      .panel.has-calendar .trace-section { max-height: 200px; }
-      .panel.has-calendar .trace-list { max-height: 160px; }
-
       .actions {
         display: flex; align-items: center; gap: 8px;
         padding: 12px 18px;
@@ -735,14 +800,6 @@
         <div class="section-label">Workflow trace</div>
         <div class="workflow-summary" hidden></div>
         <div class="trace-list"></div>
-      </div>
-
-      <div class="calendar-section" hidden>
-        <div class="calendar-header">
-          <span>Calendar · what the lead sees right now</span>
-          <button class="calendar-collapse" aria-label="Hide calendar">↘</button>
-        </div>
-        <iframe class="calendar-iframe" title="Scheduler"></iframe>
       </div>
 
       <div class="safety-toast"></div>
