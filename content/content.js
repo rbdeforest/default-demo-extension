@@ -61,7 +61,7 @@
   } catch (e) { teardown(); }
 
   function onSubmitIntercepted({ formData, vendor, source }) {
-    console.log("[Default Demo] intercept fired. autoOpenOverlay =", autoOpenOverlay);
+    console.log("[Default Demo] intercept fired. autoOpenOverlay =", autoOpenOverlay, "vendor:", vendor);
     if (!autoOpenOverlay) {
       console.log("[Default Demo] form intercepted (overlay disabled)", { vendor, formData });
       return;
@@ -131,7 +131,7 @@
   // Listen for the injector's main-world fetch/XHR interception.
   window.addEventListener("default-demo:fetch-intercepted", (event) => {
     if (!ns.INTERCEPT_ENABLED) return;
-    if (!ns.hasRecentUserIntent || !ns.hasRecentUserIntent()) return; // double-check on the iso-world side
+    if (!ns.hasRecentUserIntent || !ns.hasRecentUserIntent()) return;
     if (ns.interceptorRecentlyFired && ns.interceptorRecentlyFired()) return;
     if (ns.markInterceptorFired) ns.markInterceptorFired();
 
@@ -139,7 +139,7 @@
     const formData = detail.body || {};
     onSubmitIntercepted({
       formData,
-      vendor: "network",
+      vendor: detail.vendor || "network",
       source: detail.url || location.hostname
     });
   });
