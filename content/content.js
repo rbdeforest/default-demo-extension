@@ -102,12 +102,14 @@
     if (!ns.overlay?.open) return;
 
     const detected = detectedForms[0];
-    if (detected.element instanceof HTMLIFrameElement) return; // wait for the inner frame to intercept
+    if (detected.element instanceof HTMLIFrameElement) return;
     const { formData, vendor } = buildFormDataFromDetected(detected);
+    console.log("[Default Demo] auto-opening overlay for", vendor);
     ns.overlay.open({
       formData,
       vendor,
-      sourceUrl: location.hostname
+      sourceUrl: location.hostname,
+      force: true
     });
     hasAutoOpened = true;
   }
