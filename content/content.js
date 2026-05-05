@@ -6,9 +6,24 @@
 
   let detectedForms = [];
   const detachByForm = new WeakMap();
+  let autoOpenOverlay = true;
+
+  if (chrome.storage?.sync) {
+    chrome.storage.sync.get({ autoOpenOverlay: true }, (s) => {
+      autoOpenOverlay = !!s.autoOpenOverlay;
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "sync" && "autoOpenOverlay" in changes) {
+        autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
+      }
+    });
+  }
 
   function onSubmitIntercepted({ formData, vendor, source }) {
-    // Forward to top frame's overlay. Same-frame fast path when we ARE the top frame.
+    if (!autoOpenOverlay) {
+      console.log("[Default Demo] form intercepted (overlay disabled)", { vendor, formData });
+      return;
+    }
     if (window === window.top) {
       ns.overlay.open({
         formData,
@@ -145,6 +160,10 @@
 
     // Forwarded from sub-frames via background.
     if (message?.type === MessageTypes.FORM_INTERCEPTED && window === window.top) {
+      if (!autoOpenOverlay) {
+        console.log("[Default Demo] cross-frame intercept (overlay disabled)", message.payload);
+        return;
+      }
       ns.overlay.open({
         formData: message.payload?.formData ?? {},
         vendor: message.payload?.vendor || "form",

@@ -3,6 +3,15 @@ const formsEl = document.getElementById("forms");
 const openBtn = document.getElementById("open-trace");
 const sandboxBtn = document.getElementById("run-sandbox");
 const workflowPicker = document.getElementById("workflow-picker");
+const autoOpenToggle = document.getElementById("auto-open-toggle");
+
+chrome.storage.sync.get({ autoOpenOverlay: true }, ({ autoOpenOverlay }) => {
+  autoOpenToggle.checked = !!autoOpenOverlay;
+});
+
+autoOpenToggle.addEventListener("change", () => {
+  chrome.storage.sync.set({ autoOpenOverlay: autoOpenToggle.checked });
+});
 
 const VENDOR_LABEL = {
   html: "Plain HTML",

@@ -71,14 +71,28 @@
     }
   }
 
+  const VENDOR_DISPLAY = {
+    html: "HTML Form",
+    hubspot: "HubSpot Form",
+    marketo: "Marketo Form",
+    pardot: "Pardot Form",
+    "react-custom": "Custom React Form",
+    network: "Network Capture",
+    sandbox: "Sandbox",
+    form: "Form"
+  };
+
   function setFormData(data, vendor, source) {
     currentFormData = { ...(data || {}) };
-    titleEl.textContent = vendor || "form";
+    const friendly = VENDOR_DISPLAY[vendor] || vendor || "Form";
+    titleEl.textContent = friendly;
+
+    const vendorBigEl = shadow.querySelector(".vendor-big");
+    if (vendorBigEl) vendorBigEl.textContent = friendly;
 
     const sourceLineEl = shadow.querySelector(".source-line");
-    const sourceEl = shadow.querySelector(".source-host");
     if (vendor === "sandbox") {
-      if (sourceLineEl) sourceLineEl.textContent = "Sandbox · no form on this page";
+      if (sourceLineEl) sourceLineEl.textContent = "No form on this page";
     } else {
       if (sourceLineEl) sourceLineEl.innerHTML = `Captured from <span class="source-host">${source || location.hostname}</span>`;
     }
@@ -360,6 +374,13 @@
         margin-bottom: 10px;
       }
 
+      .vendor-big {
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: ${BRAND.white};
+        margin-bottom: 6px;
+      }
       .source {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.45);
@@ -537,6 +558,7 @@
 
       <div class="section">
         <div class="section-label">Source</div>
+        <div class="vendor-big">Form</div>
         <div class="source"><span class="source-line">Captured from <span class="source-host">${location.hostname}</span></span></div>
         <div class="source-tech"></div>
         <div class="form-fields"></div>
