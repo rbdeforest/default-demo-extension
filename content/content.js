@@ -40,6 +40,11 @@
         try {
           if (area === "sync" && "autoOpenOverlay" in changes) {
             autoOpenOverlay = !!changes.autoOpenOverlay.newValue;
+            // Toggling OFF should immediately close any open overlay so the AE
+            // can flip the switch mid-test without dragging the panel away.
+            if (!autoOpenOverlay && window === window.top && ns.overlay?.isOpen?.()) {
+              ns.overlay.close("auto");
+            }
           }
         } catch (e) { teardown(); }
       });
